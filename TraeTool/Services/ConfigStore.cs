@@ -9,7 +9,7 @@ namespace TraeTool.Services;
 /// config.json 存取。敏感字段（Account.Token / Session / DeviceId）以 DPAPI 加密落盘，
 /// 内存中保持明文（各调用方无感）。
 ///
-/// ⚠️ 已知陷阱（参考实现踩过）：每个新增密文字段必须**同时**加进
+/// ⚠️ 已知陷阱：每个新增密文字段必须**同时**加进
 /// <see cref="Seal"/>（Save 路径）与 <see cref="UnsealSecrets"/>（Load 路径），
 /// 漏加任何一侧都会导致该字段「改完重启就失效」。
 /// 本实现把密文字段集中在 <see cref="SecretFields"/> 一处登记，两侧复用同一张表防漏。

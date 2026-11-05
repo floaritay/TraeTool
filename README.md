@@ -65,13 +65,6 @@ docs/UI设计需求.txt        # 信息架构与模块设计说明
 docs/prototype/           # 布局与交互基线原型（双击 index.html 离线演示）
 ```
 
-## 参考与致谢
-
-实现思路调研自以下开源项目，**代码均为按公开行为自行编写，未复制其源文件**：
-
-- [star620/TraeTools](https://github.com/star620/TraeTools)（GPL-3.0）
-- [smart-open/TraeWorkAssistant](https://github.com/smart-open/TraeWorkAssistant)（MIT，署名 朱天伟）
-
 界面设计基于本仓库 `docs/` 内的设计说明与原型完成。
 
 ## 许可证

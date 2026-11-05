@@ -337,7 +337,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                            <RowDefinition/><RowDefinition/><RowDefinition/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="日志位置" FontSize="10.5"
@@ -351,14 +351,9 @@
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="DPAPI 加密 · 仅当前 Windows 用户可解密"
                                    FontSize="10.5" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,7"/>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="开源参考" FontSize="10.5"
-                                   Foreground="{DynamicResource MuteBrush}" Margin="0,0,0,7"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="TraeTools（GPL） · AI Work（MIT）"
-                                   FontSize="10.5" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,7"/>
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="单实例" FontSize="10.5"
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="单实例" FontSize="10.5"
                                    Foreground="{DynamicResource MuteBrush}"/>
-                        <TextBlock Grid.Row="3" Grid.Column="1"
+                        <TextBlock Grid.Row="2" Grid.Column="1"
                                    Text="重复启动会唤醒已有窗口，避免重复签到"
                                    FontSize="10.5" Foreground="{DynamicResource TextBrush}"/>
                     </Grid>

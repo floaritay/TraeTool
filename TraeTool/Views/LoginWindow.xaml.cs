@@ -7,7 +7,7 @@ using TraeTool.Services;
 namespace TraeTool.Views;
 
 /// <summary>
-/// WebView2 登录窗（单进程内嵌，参考原版 TraeCheckin 形态）。
+/// WebView2 登录窗（单进程内嵌）。
 /// 每账号独立 CoreWebView2Environment（UserDataFolder = 该账号 profile 目录），
 /// 登录态互相隔离；1.5s 轮询读 localStorage['Cloud-IDE-Token']（JWT）与
 /// Cookie X-Cloudide-Session，凑齐后关闭窗口并通过 <see cref="Result"/> 交回。

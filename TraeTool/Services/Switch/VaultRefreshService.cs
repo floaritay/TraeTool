@@ -4,7 +4,7 @@ using TraeTool.ViewModels;
 namespace TraeTool.Services.Switch;
 
 /// <summary>
-/// 档案定时保鲜（参考实现的 auto-refresh 思路）：
+/// 档案定时保鲜：
 /// 每 10 分钟检查一次，仅当【客户端未运行】且能【唯一判定】当前登录账号时，
 /// 给该账号的档案重新备份（保留原 CreatedUtc），防止登录态随时间陈旧
 /// （refresh token 轮换、storage.json 漂移等）。

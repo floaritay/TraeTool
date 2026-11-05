@@ -9,7 +9,7 @@ namespace TraeTool.Services;
 public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfig)
 {
     /// <summary>
-    /// 单账号签到。流程（已按参考实现验证的行为编写）：
+    /// 单账号签到。流程：
     ///   未登录 → 本地今日已签跳过 → EnsureValidToken（Session 静默续期）
     ///   → status 预检（服务器已签 → 本地补记，不重签）
     ///   → claim（9074 风控 → 换新设备号重试一次）
@@ -69,7 +69,7 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
         while (claim.Code == TraeApiClient.CodeDeviceRisk && attempt < MaxAttempts)
         {
             attempt++;
-            var sleepMs = 800 + Random.Shared.Next(0, 700); // 0.8~1.5s（参考脚本同款）
+            var sleepMs = 800 + Random.Shared.Next(0, 700); // 0.8~1.5s 抖动
             AppLog.Info("checkin", $"{displayName}: 9074 限流，{sleepMs}ms 后换号重试（{attempt}/{MaxAttempts}）");
             await Task.Delay(sleepMs);
             account.DeviceId = DeviceIdFactory.GenerateUnique(

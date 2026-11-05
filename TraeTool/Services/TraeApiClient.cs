@@ -29,7 +29,7 @@ public sealed class CheckinStatus
 }
 
 /// <summary>Trae 云 API 客户端。无账号态：token/deviceId 全部走方法参数。
-/// 请求头采用最小头集（参考实现验证可用）；<see cref="UseFallbackHeaders"/> 打开后
+/// 请求头采用最小头集；<see cref="UseFallbackHeaders"/> 打开后
 /// 附加官方客户端观察头（仅当最小头被服务端拒绝时排查用，默认关闭）。</summary>
 public static class TraeApiClient
 {
@@ -40,7 +40,7 @@ public static class TraeApiClient
 
     static TraeApiClient()
     {
-        Http.DefaultRequestHeaders.UserAgent.ParseAdd("TraeCheckin/1.0");
+        Http.DefaultRequestHeaders.UserAgent.ParseAdd("TraeTool/1.0");
     }
 
     /// <summary>备用全头集开关（见类注释）。默认 false。</summary>
@@ -269,7 +269,7 @@ public static class TraeApiClient
         }
     }
 
-    /// <summary>备用全头集（观察自 AI Work 助手）。默认不启用，仅最小头被拒时打开排查。</summary>
+    /// <summary>备用全头集（官方客户端完整头）。默认不启用，仅最小头被拒时打开排查。</summary>
     private static void ApplyFallbackHeaders(HttpRequestMessage req)
     {
         if (!UseFallbackHeaders) return;

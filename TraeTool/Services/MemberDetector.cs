@@ -7,8 +7,7 @@ namespace TraeTool.Services;
 /// <summary>
 /// 会员状态判定。数据源（逆向自客户端 storage.json）：
 /// <c>iCubeServerData://icube.cloudide</c>（JSON 字符串）→ entitlementInfo.identity / identityStr。
-/// Free 用户 identity=0、identityStr="Free"。参考实现的 IsMember 字段实际从未赋值（死字段），
-/// 我们用客户端已下发的资格数据补上这块。
+/// Free 用户 identity=0、identityStr="Free"；用客户端已下发的资格数据判定会员。
 /// </summary>
 public static class MemberDetector
 {

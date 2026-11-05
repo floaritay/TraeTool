@@ -4,7 +4,7 @@ using System.IO;
 namespace TraeTool.Services.Switch;
 
 /// <summary>
-/// Trae 桌面客户端「登录态载体」定义（按观察参考实现的行为自行编写）：
+/// Trae 桌面客户端「登录态载体」定义：
 /// 固定 15 项白名单 + 缓存/日志类排除目录 + 数据根/可执行文件探测。
 /// 白名单必须固定——历史教训是"目录扫描猜测"会漏掉 state.vscdb 侧车家族导致切换失效。
 /// </summary>
@@ -61,7 +61,7 @@ public static class CarrierDefs
     /// <summary>
     /// 探测客户端 exe，顺序：① 手动 override（文件存在）② 运行中 "Trae CN" 进程主模块
     /// （最可靠——本机安装路径不受安装器版本影响）③ 候选路径清单（含本机
-    /// <c>D:\Trae\Trae CN</c>——参考实现的清单没有这个布局）④ null。
+    /// <c>D:\Trae\Trae CN</c> 等布局）④ null。
     /// </summary>
     public static string? TryDetectExe(string? overridePath)
     {

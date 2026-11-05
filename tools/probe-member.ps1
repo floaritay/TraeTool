@@ -24,7 +24,7 @@ New-Item -ItemType Directory -Force -Path $outDir | Out-Null
     -H "Authorization: Cloud-IDE-JWT $jwt" `
     -H 'X-User-Region: cn' `
     -H "x-device-id: $deviceId" `
-    -H 'User-Agent: TraeCheckin/1.0' `
+    -H 'User-Agent: TraeTool/1.0' `
     -H 'Content-Type: application/json' `
     -d '{}' --max-time 30 -o "$outDir\entitlements.json"
 

@@ -48,9 +48,6 @@
                                        Text="· 本工具为个人开源效率软件，与 ByteDance / TRAE 官方无任何关系。"/>
                             <TextBlock FontSize="12" Foreground="{DynamicResource SubBrush}"
                                        TextWrapping="Wrap" LineHeight="20" Margin="0,4,0,0"
-                                       Text="· 开源参考：TraeTools（GPL-3.0）与 AI Work（MIT）；本程序按其公开行为自行实现，未复制其源代码。"/>
-                            <TextBlock FontSize="12" Foreground="{DynamicResource SubBrush}"
-                                       TextWrapping="Wrap" LineHeight="20" Margin="0,4,0,0"
                                        Text="· 账号数据仅存于本机 %APPDATA%\TraeTool\ 目录；请勿将配置文件分享或提交到公开仓库。"/>
                             <TextBlock FontSize="12" Foreground="{DynamicResource TextBrush}" FontWeight="SemiBold"
                                        TextWrapping="Wrap" LineHeight="20" Margin="0,10,0,0"

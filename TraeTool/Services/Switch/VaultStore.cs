@@ -27,7 +27,7 @@ public sealed class VaultIoException : Exception
 /// <summary>
 /// 档案 vs live 的相似度报告。
 /// 注意：usertag 每次登录会话都会轮换，**不能**做跨会话等值身份判定（实测教训）；
-/// 身份只能靠「非噪声稳定文件的相似度」判定（参考实现同款 ≥75% 阈值）。
+/// 身份只能靠「非噪声稳定文件的相似度」判定（≥75% 阈值）。
 /// </summary>
 public sealed record SimilarityReport(
     double Score,            // 0..1 = Matched/Compared（仅计非噪声文件）
@@ -49,14 +49,14 @@ public sealed record VerifyReport(
 /// <summary>
 /// 登录态档案库：字节级备份/恢复/校验/回写，位于 %APPDATA%\TraeTool\vault\&lt;accountId&gt;\，
 /// 内部按数据根相对路径镜像 + meta.json（SHA-256 清单）。
-/// 硬约束（参考实现验证过的教训）：
+/// 硬约束（实测教训）：
 ///  - 恢复前删 live code.lock，且无条件删 live state.vscdb-wal/-shm（否则 WAL 回放上一账号）
 ///  - 目录条目先整删再整树复制；文件先删再拷（防半新半旧）；删除失败抛 VaultIoException 触发回滚
 ///  - 重建档保留原 CreatedUtc；切换成功后 storage.json 回写（refresh 轮换防 401）
 /// </summary>
 public sealed class VaultStore
 {
-    /// <summary>相似度判定阈值（参考实现验证值：低于此分视为「客户端不是此账号/登录态已变」）。</summary>
+    /// <summary>相似度判定阈值（低于此分视为「客户端不是此账号/登录态已变」）。</summary>
     public const double SimilarityPass = 0.75;
 
     /// <summary>
@@ -208,7 +208,7 @@ public sealed class VaultStore
     }
 
     /// <summary>
-    /// 比对时排除的运行时/噪声文件（分类来自参考实现的实测结论）：
+    /// 比对时排除的运行时/噪声文件（实测分类）：
     ///  - runtime 三件：storage.json / config.db / Network Persistent State（每次运行都写）
     ///  - WAL/SHM 侧车（必然随运行变化）
     ///  - LevelDB 滚动噪声：LOG / LOG.old / CURRENT / LOCK / MANIFEST-*

@@ -306,7 +306,7 @@ public partial class DashboardViewModel : ObservableObject
         if (src != null) row.AvatarImage = src;
     }
 
-    /// <summary>近 14 天剩余积分趋势（数据源 credits_snapshot；算法与参考实现一致）。</summary>
+    /// <summary>近 14 天剩余积分趋势（数据源 credits_snapshot）。</summary>
     private void BuildTrend(Account acc)
     {
         var trend = CheckinRecordRepo.GetSnapshotTrend(acc.Id, 14);

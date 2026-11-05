@@ -26,7 +26,7 @@ $renewJson = & curl.exe -s -X POST 'https://api.trae.cn/cloudide/api/v3/common/G
     -H "Cookie: X-Cloudide-Session=$session" `
     -H 'Referer: https://www.trae.cn/' `
     -H 'Origin: https://www.trae.cn' `
-    -H 'User-Agent: TraeCheckin/1.0' `
+    -H 'User-Agent: TraeTool/1.0' `
     --max-time 30
 $renew = $renewJson | ConvertFrom-Json
 $jwt = $renew.Result.Token
@@ -41,7 +41,7 @@ $stJson = & curl.exe -s -X POST 'https://api.trae.cn/trae/api/v2/ug/checkin_cred
     -H "Authorization: Cloud-IDE-JWT $jwt" `
     -H 'X-User-Region: cn' `
     -H "x-device-id: $deviceId" `
-    -H 'User-Agent: TraeCheckin/1.0' `
+    -H 'User-Agent: TraeTool/1.0' `
     -H 'Content-Type: application/json' `
     -d '{}' --max-time 30
 $st = $stJson | ConvertFrom-Json
