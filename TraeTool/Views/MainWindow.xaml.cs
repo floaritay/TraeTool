@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using TraeTool.Services;
 using TraeTool.ViewModels;
-using UserControl = System.Windows.Controls.UserControl; // WinForms 隐式 using 冲突坑
+using UserControl = System.Windows.Controls.UserControl; // 与 WinForms UserControl 冲突，需限定
 
 namespace TraeTool.Views;
 
@@ -144,8 +144,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        // CloseToTray 开启：用户点 X 只是收托盘，后台继续自动签到；托盘「退出」/更新安装才真退
-        // （此前托盘退出会被这里拦截导致 Shutdown 取消——ForceExit 通道修复）。
+        // CloseToTray 开启：用户点 X 只是收托盘，后台继续自动签到；托盘「退出」/更新安装走 ForceExit 才真退。
         if (AppServices.Config.CloseToTray && !AppServices.ForceExit)
         {
             e.Cancel = true;

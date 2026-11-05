@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using TraeTool.Services;
-using Application = System.Windows.Application;      // WinForms 隐式 using 冲突坑
+using Application = System.Windows.Application;      // 与 WinForms Application 冲突，需限定
 using IconsData = TraeTool.Resources.Icons;          // FrameworkElement.Resources 实例属性遮蔽
 
 namespace TraeTool.Views;

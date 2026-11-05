@@ -86,8 +86,7 @@ public partial class AccountRowViewModel : ObservableObject
     public string DeviceIdTail =>
         string.IsNullOrEmpty(Account.DeviceId) ? "—" : "…" + Account.DeviceId[^4..];
 
-    /// <summary>参与批量签到开关（双向绑 Account.Enabled，改动即落盘——
-    /// 此前无人保存，重启后勾选会静默丢失）。</summary>
+    /// <summary>参与批量签到开关（双向绑 Account.Enabled，改动即落盘）。</summary>
     public bool Enabled
     {
         get => Account.Enabled;

@@ -6,8 +6,8 @@ namespace TraeTool.Services.Switch;
 
 /// <summary>
 /// Trae 客户端进程生命周期：优雅关闭（WM_CLOSE）→ 强杀进程树 → 拉起。
-/// 教训：直接强杀会让 SQLite 停在未 checkpoint 的 WAL 上，所以必须先给优雅关闭窗口期；
-/// 强杀后仍存活必须让调用方中止——带文件锁硬做备份/恢复必然出事。
+/// 直接强杀会让 SQLite 停在未 checkpoint 的 WAL 上，所以必须先给优雅关闭窗口期；
+/// 强杀后仍存活必须让调用方中止——带文件锁硬做备份/恢复会损坏数据。
 /// </summary>
 public static class ClientControl
 {

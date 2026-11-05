@@ -6,7 +6,7 @@ namespace TraeTool;
 /// <summary>
 /// 应用入口。注意：csproj 同时启用了 WPF 与 WinForms（托盘用），两个命名空间都带
 /// Application/MessageBox 等同名类型，此处必须写全限定 System.Windows.Application。
-/// 无 DI 容器：AppServices.Init + 手工构造 MainViewModel（见计划）。
+/// 无 DI 容器：AppServices.Init + 手工构造 MainViewModel。
 /// </summary>
 public partial class App : System.Windows.Application
 {

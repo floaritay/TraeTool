@@ -43,8 +43,7 @@ public sealed class AutoCheckinService(Func<AppSettings> getConfig, Func<bool> i
             var now = DateTime.Now;
             var today = now.ToString("yyyy-MM-dd");
             if (now.TimeOfDay < due) return;                 // 未到点
-            // 今日已触发（双保险：进程内 _ranDate + 持久化 LastAutoRunDate——
-            // 上一版只记内存，每次重启都会重跑一轮并弹"签到完成"气泡）
+            // 今日已触发（双保险：进程内 _ranDate + 持久化 LastAutoRunDate，重启不重跑）
             if (_ranDate == DateOnly.FromDateTime(now)) return;
             if (cfg.LastAutoRunDate == today) return;
             if (isBusy()) return;                            // 手动批次进行中，下轮再看

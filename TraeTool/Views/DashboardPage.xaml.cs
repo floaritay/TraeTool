@@ -22,7 +22,7 @@ public partial class DashboardPage : System.Windows.Controls.UserControl
         }
     }
 
-    /// <summary>趋势图画布尺寸变化 → VM 按实际宽度重算折线（原固定 520 已废弃）。</summary>
+    /// <summary>趋势图画布尺寸变化 → VM 按实际宽度重算折线。</summary>
     private void OnTrendSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (DataContext is DashboardViewModel vm && e.NewSize.Width > 60)

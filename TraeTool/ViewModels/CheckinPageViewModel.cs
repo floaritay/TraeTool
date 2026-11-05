@@ -144,7 +144,7 @@ public partial class CheckinPageViewModel : ObservableObject
             return;
         }
 
-        // 未登录账号先提示（不弹窗阻塞批次——一期从简，未登录账号在结果中标注）
+        // 未登录账号不弹窗阻塞批次，在结果中标注
         AppServices.BatchBusy = true;
         Busy = true;
         StatusMessage = $"正在签到，共 {enabled.Count} 个启用账号…";
@@ -179,7 +179,7 @@ public partial class CheckinPageViewModel : ObservableObject
             ReloadRecords();
             AppServices.RaiseAccountsChanged();
 
-            // 托盘气泡由主窗口订阅批次完成时展示（一期：仅在成功时提示一次）
+            // 托盘气泡由主窗口订阅批次完成时展示（仅在成功时提示一次）
             if (total > 0) BatchCompleted?.Invoke(summary);
         }
         catch (Exception ex)

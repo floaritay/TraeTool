@@ -15,7 +15,7 @@ public sealed record DeviceResetItem(string Item, bool Ok, string Detail);
 /// telemetry.devDeviceId（GUID），以及可选的 Windows MachineGuid
 /// （HKLM 注册表，需管理员权限，系统级影响——界面默认不勾选）。
 /// 每次改动前先把原文件备份到 %TEMP%\traedevreset_时间戳\ 目录。
-/// aha/TinyStorage、ahanet 等其余标识结构本轮不处理（界面有说明）。
+/// aha/TinyStorage、ahanet 等其余标识结构不处理（界面有说明）。
 /// </summary>
 public static class DeviceResetService
 {

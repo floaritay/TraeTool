@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using TraeTool.Services;
-using Application = System.Windows.Application;   // WinForms 隐式 using 冲突坑
+using Application = System.Windows.Application;   // 与 WinForms Application 冲突，需限定
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using FontFamily = System.Windows.Media.FontFamily;

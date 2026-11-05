@@ -191,7 +191,7 @@ public partial class DashboardViewModel : ObservableObject
         {
             InfoMessage = "正在批量签到（进度详见「每日签到」页执行状态）…";
             await _checkin.CheckinCommand.ExecuteAsync(null);
-            // 批次完成后的汇总回显到本页信息横幅（此前只有数据变化+气泡，看不出执行了没有）
+            // 批次完成后的汇总回显到本页信息横幅
             InfoMessage = _checkin.StatusMessage;
         }
         catch (Exception ex)

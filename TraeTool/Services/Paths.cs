@@ -2,8 +2,7 @@ using System.IO;
 namespace TraeTool.Services;
 
 /// <summary>
-/// 数据目录布局。启动时调用 <see cref="EnsureCreated"/> 一次性建齐，
-/// 其中 vault\ 与 switch\ 是二期（客户端登录态切换）预留目录，本期只创建不使用。
+/// 数据目录布局。启动时调用 <see cref="EnsureCreated"/> 一次性建齐。
 /// </summary>
 public static class Paths
 {
@@ -18,10 +17,10 @@ public static class Paths
 
     public static string LogsDir => Path.Combine(Root, "logs");
 
-    /// <summary>二期预留：按账号 Id/Uid 键控的客户端登录态 vault。</summary>
+    /// <summary>按账号 Id/Uid 键控的客户端登录态 vault。</summary>
     public static string VaultDir => Path.Combine(Root, "vault");
 
-    /// <summary>二期预留：切换状态与回滚快照。</summary>
+    /// <summary>切换状态与回滚快照。</summary>
     public static string SwitchDir => Path.Combine(Root, "switch");
 
     public static string DatabaseFile => Path.Combine(DataDir, "checkin.db");

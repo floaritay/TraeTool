@@ -165,7 +165,7 @@ public static class UpdateService
         sb.AppendLine($"start \"\" \"{exe}\"");
         sb.AppendLine("endlocal");
         sb.AppendLine("del \"%~f0\"");
-        // bat 为纯 ASCII（CN locale 编码坑）
+        // bat 必须纯 ASCII（避免 CN locale 下编码损坏）
         File.WriteAllText(bat, sb.ToString(), Encoding.ASCII);
 
         AppLog.Info("update", $"安装脚本已写入 {pid}→{appDir}，准备退出安装");

@@ -2,8 +2,7 @@ namespace TraeTool.Models;
 
 /// <summary>
 /// 一个 Trae 账号。每个账号独立 Token(JWT)/Session(Cookie)/DeviceId。
-/// 该模型不包含任何 Trae 桌面客户端路径字段——与二期切换子系统解耦
-/// （二期 vault 按本模型的 Id/Uid 键控，不依赖显示名）。
+/// 不包含任何 Trae 桌面客户端路径字段——客户端 vault 按 Id/Uid 键控，与显示名无关。
 /// </summary>
 public class Account
 {

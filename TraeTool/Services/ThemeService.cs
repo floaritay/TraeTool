@@ -22,7 +22,7 @@ public static class ThemeService
 
         var mds = app.Resources.MergedDictionaries;
         // 关键：WPF 合并字典**越靠后优先级越高**——必须移除旧主题字典后
-        // 把新字典 Add 到末尾，否则会被 App.xaml 里预挂的 Light.xaml 压住（首版 Insert(0) 即此 bug）。
+        // 把新字典 Add 到末尾，否则会被 App.xaml 里预挂的 Light.xaml 压住。
         for (int i = mds.Count - 1; i >= 0; i--)
         {
             var src = mds[i].Source?.OriginalString ?? "";

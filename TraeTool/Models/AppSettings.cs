@@ -35,7 +35,7 @@ public class AppSettings
     /// <summary>设备号来源：随机生成 / 从本机 Trae 客户端读取真实设备号。</summary>
     public string DeviceIdMode { get; set; } = DeviceIdModes.Random;
 
-    /// <summary>二期：Trae 客户端 exe 手动指定路径；空 = 自动探测（运行进程优先 → 候选清单）。</summary>
+    /// <summary>Trae 客户端 exe 手动指定路径；空 = 自动探测（运行进程优先 → 候选清单）。</summary>
     public string? ClientExePath { get; set; }
 
     /// <summary>自动签到最近一次触发日期（yyyy-MM-dd）——持久化后每天只自动跑一次，重启不重复。</summary>

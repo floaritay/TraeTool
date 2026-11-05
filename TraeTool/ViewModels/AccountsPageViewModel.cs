@@ -236,8 +236,8 @@ public partial class AccountsPageViewModel : ObservableObject
             "将执行：" + string.Join("、", items) + "\n原文件会先备份到 %TEMP%\\traedevreset_*。",
             DialogKind.Warn,
             small: ResetMachineGuid
-                ? "MachineGuid 影响系统与部分软件的设备识别，且需要管理员权限；aha/TinyStorage 等其余标识本轮不处理。"
-                : "客户端下次启动即使用新标识；aha/TinyStorage 等其余标识本轮不处理。",
+                ? "MachineGuid 影响系统与部分软件的设备识别，且需要管理员权限；aha/TinyStorage 等其余标识不处理。"
+                : "客户端下次启动即使用新标识；aha/TinyStorage 等其余标识不处理。",
             primary: "开始重置", secondary: "取消");
         if (!go) return;
 

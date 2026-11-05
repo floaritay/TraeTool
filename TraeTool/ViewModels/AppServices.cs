@@ -4,7 +4,7 @@ using TraeTool.Services;
 namespace TraeTool.ViewModels;
 
 /// <summary>
-/// 手工装配的服务定位（一期不引入 DI 容器）。
+/// 手工装配的服务定位（不引入 DI 容器）。
 /// 账号集合的任何变更（增/删/登录/切换/保存）都必须 <see cref="RaiseAccountsChanged"/>，
 /// 两个页面 VM 都订阅它来刷新各自的展示。
 /// </summary>

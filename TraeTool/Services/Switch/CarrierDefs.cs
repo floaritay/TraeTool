@@ -6,7 +6,7 @@ namespace TraeTool.Services.Switch;
 /// <summary>
 /// Trae 桌面客户端「登录态载体」定义：
 /// 固定 15 项白名单 + 缓存/日志类排除目录 + 数据根/可执行文件探测。
-/// 白名单必须固定——历史教训是"目录扫描猜测"会漏掉 state.vscdb 侧车家族导致切换失效。
+/// 白名单必须固定——动态目录扫描会漏掉 state.vscdb 侧车文件导致切换失效。
 /// </summary>
 public static class CarrierDefs
 {
@@ -100,11 +100,11 @@ public static class CarrierDefs
         return null;
     }
 
-    /// <summary>候选 exe 路径（按优先级；本机实际布局排最前）。</summary>
+    /// <summary>候选 exe 路径（按优先级）。</summary>
     private static IEnumerable<string> CandidateExePaths()
     {
         var drives = new[] { "D:", "C:", "E:" };
-        // 本机已知布局：D:\Trae\Trae CN\Trae CN.exe
+        // 常见布局：<drive>\Trae\Trae CN\Trae CN.exe
         foreach (var d in drives)
             yield return Path.Combine(d + @"\", "Trae", "Trae CN", "Trae CN.exe");
         foreach (var d in drives)

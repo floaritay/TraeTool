@@ -2,7 +2,7 @@ using System.Windows;
 using TraeTool.Models;
 using TraeTool.ViewModels;
 using TraeTool.Views;
-using Application = System.Windows.Application; // WinForms 隐式 using 冲突坑
+using Application = System.Windows.Application; // 与 WinForms Application 冲突，需限定
 
 namespace TraeTool.Services.Switch;
 

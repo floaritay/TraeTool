@@ -192,8 +192,7 @@ public static class TraeApiClient
                 return null;
             }
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-            // 实测真实信封：{"ResponseMetadata":{...},"reward_status":0,"status":0}
-            // —— status 在**根级**（首版查 Result.status 永远取不到，徽标从不更新）。
+            // 真实信封：{"ResponseMetadata":{...},"reward_status":0,"status":0} —— status 在根级。
             var root = doc.RootElement;
             JsonElement st;
             if (!root.TryGetProperty("status", out st))

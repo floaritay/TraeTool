@@ -35,7 +35,7 @@ public static class ConfigStore
     public static AppSettings Load()
     {
         // 主文件损坏（如写盘中被杀导致截断）时回退到上一次 .bak——
-        // 直接回退默认值会让下一次 Save 把空配置写盘（账号全丢的教训）
+        // 直接回退默认值会让下一次 Save 把空配置写盘
         foreach (var path in new[] { Paths.ConfigFile, BackupPath })
         {
             try
@@ -89,7 +89,7 @@ public static class ConfigStore
             StartWithWindows = cfg.StartWithWindows,
             CloseToTray = cfg.CloseToTray,
             DeviceIdMode = cfg.DeviceIdMode,
-            // 二期新增非密文字段也必须登记在此拷贝里，否则永远不落盘（见类注释）
+            // 新增非密文字段也必须登记在此拷贝里，否则永远不落盘（见类注释）
             ClientExePath = cfg.ClientExePath,
             LastAutoRunDate = cfg.LastAutoRunDate,
             ClientActiveAccountId = cfg.ClientActiveAccountId,

@@ -21,15 +21,8 @@ public static class Icons
     public static readonly Geometry Settings = G("M12.22 2 h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M9 12 A3 3 0 1 0 15 12 A3 3 0 1 0 9 12 Z");
     public static readonly Geometry Refresh = G("M3 12 a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3 v5h-5 M21 12 a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M8 16 H3v5");
     public static readonly Geometry Zap = G("M4 14 a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z");
-    public static readonly Geometry ChevronLeft = G("M15 18 L9 12 L15 6");
-    public static readonly Geometry ChevronRight = G("M9 18 L15 12 L9 6");
     public static readonly Geometry Plus = G("M5 12 h14 M12 5 v14");
-    public static readonly Geometry Login = G("M15 3 h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4 M10 17 L15 12 L10 7 M15 12 L3 12");
-    public static readonly Geometry Trash = G("M3 6 h18 M19 6 v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6 V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11 L10 17 M14 11 L14 17");
     public static readonly Geometry Shield = G("M20 13 c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z M9 12 L11 14 L15 10");
-    public static readonly Geometry Wrench = G("M14.7 6.3 a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z");
-    public static readonly Geometry Terminal = G("M4 17 L10 11 L4 5 M12 19 L20 19");
-    public static readonly Geometry Clock = G("M2 12 A10 10 0 1 0 22 12 A10 10 0 1 0 2 12 Z M12 6 L12 12 L16 14");
     public static readonly Geometry Activity = G("M22 12 h-4l-3 9L9 3l-3 9H2");
     public static readonly Geometry Alert = G("M21.73 18 L13.73 4 a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3 M12 9 v4 M12 17 h.01");
     public static readonly Geometry Info = G("M2 12 A10 10 0 1 0 22 12 A10 10 0 1 0 2 12 Z M12 16 v-4 M12 8 h.01");
@@ -38,16 +31,11 @@ public static class Icons
     public static readonly Geometry CheckCheck = G("M18 6 L7 17 l-5-5 M22 10 L14.5 17.5 L13 16");
     public static readonly Geometry User = G("M19 21 v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2 M8 7 A4 4 0 1 0 16 7 A4 4 0 1 0 8 7 Z");
     public static readonly Geometry Monitor = G("M4 3 H20 A2 2 0 0 1 22 5 V15 A2 2 0 0 1 20 17 H4 A2 2 0 0 1 2 15 V5 A2 2 0 0 1 4 3 Z M8 21 L16 21 M12 17 L12 21");
-    public static readonly Geometry Folder = G("M20 20 a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z");
     public static readonly Geometry Database = G("M3 5 V19A9 3 0 0 0 21 19V5 M3 12 A9 3 0 0 0 21 12");
-    public static readonly Geometry Loader = G("M21 12 a9 9 0 1 1-6.219-8.56");
     public static readonly Geometry Minus = G("M5 12 h14");
     public static readonly Geometry Square = G("M6.5 5.5 H17.5 A1 1 0 0 1 18.5 6.5 V17.5 A1 1 0 0 1 17.5 18.5 H6.5 A1 1 0 0 1 5.5 17.5 V6.5 A1 1 0 0 1 6.5 5.5 Z");
     public static readonly Geometry Tray = G("M22 12 h-6l-2 3h-4l-2-3H2 M5.45 5.11 L2 12 v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z");
-    public static readonly Geometry ArrowRight = G("M5 12 h14 M12 5 L19 12 L12 19");
     public static readonly Geometry Wallet = G("M19 7 V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1 M3 5 v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4");
     public static readonly Geometry Flame = G("M8.5 14.5 A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z");
     public static readonly Geometry Calendar = G("M8 2 v4 M16 2 v4 M5 4 H19 A2 2 0 0 1 21 6 V20 A2 2 0 0 1 19 22 H5 A2 2 0 0 1 3 20 V6 A2 2 0 0 1 5 4 Z M3 10 h18");
-    public static readonly Geometry Power = G("M12 2 v10 M18.4 6.6 a9 9 0 1 1-12.77.04");
-    public static readonly Geometry Rotate = G("M3 12 a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3 v5h5");
 }

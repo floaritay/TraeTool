@@ -3,7 +3,7 @@ namespace TraeTool.Services;
 
 /// <summary>
 /// 极简文件日志：追加写 %APPDATA%\TraeTool\logs\traetool-yyyyMMdd.log，线程安全。
-/// 一期用它观察 API 请求结果与批次执行过程；失败静默（日志永远不该让主流程崩溃）。
+/// 失败静默（日志永远不该让主流程崩溃）。
 /// </summary>
 public static class AppLog
 {

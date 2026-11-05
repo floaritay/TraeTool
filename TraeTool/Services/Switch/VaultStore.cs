@@ -26,7 +26,7 @@ public sealed class VaultIoException : Exception
 
 /// <summary>
 /// 档案 vs live 的相似度报告。
-/// 注意：usertag 每次登录会话都会轮换，**不能**做跨会话等值身份判定（实测教训）；
+/// 注意：usertag 每次登录会话都会轮换，**不能**做跨会话等值身份判定；
 /// 身份只能靠「非噪声稳定文件的相似度」判定（≥75% 阈值）。
 /// </summary>
 public sealed record SimilarityReport(
@@ -49,7 +49,7 @@ public sealed record VerifyReport(
 /// <summary>
 /// 登录态档案库：字节级备份/恢复/校验/回写，位于 %APPDATA%\TraeTool\vault\&lt;accountId&gt;\，
 /// 内部按数据根相对路径镜像 + meta.json（SHA-256 清单）。
-/// 硬约束（实测教训）：
+/// 硬约束：
 ///  - 恢复前删 live code.lock，且无条件删 live state.vscdb-wal/-shm（否则 WAL 回放上一账号）
 ///  - 目录条目先整删再整树复制；文件先删再拷（防半新半旧）；删除失败抛 VaultIoException 触发回滚
 ///  - 重建档保留原 CreatedUtc；切换成功后 storage.json 回写（refresh 轮换防 401）
@@ -61,7 +61,7 @@ public sealed class VaultStore
 
     /// <summary>
     /// 建档交叉比对拦截阈值：建档时 live 与**其他账号**已有档案相似度 ≥ 此值
-    /// → 警告可能建错档（实测同会话 ~91%、跨会话估计 ≤80%，0.85 居中留余量）。
+    /// → 警告可能建错档（同会话约 91%、跨会话约 ≤80%，0.85 居中留余量）。
     /// </summary>
     public const double CrossWarnSimilarity = 0.85;
 
