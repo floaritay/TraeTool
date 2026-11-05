@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TraeTool · 多账号签到与客户端切换 · UI 原型</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-body" data-page="dashboard">
+
+<!-- ══════════ Lucide 图标（内联 SVG 雪碧图，离线可用） ══════════ -->
+<svg class="svg-sprite" aria-hidden="true" focusable="false">
+  <symbol id="ic-dashboard" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></g></symbol>
+  <symbol id="ic-calendar-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="m9 16 2 2 4-4"></path></g></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></g></symbol>
+  <symbol id="ic-switch" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></g></symbol>
+  <symbol id="ic-chart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></g></symbol>
+  <symbol id="ic-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></g></symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></g></symbol>
+  <symbol id="ic-zap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path></g></symbol>
+  <symbol id="ic-chevron-left" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></g></symbol>
+  <symbol id="ic-chevron-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></g></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></g></symbol>
+  <symbol id="ic-login" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" x2="3" y1="12" y2="12"></line></g></symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></g></symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></g></symbol>
+  <symbol id="ic-wrench" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></g></symbol>
+  <symbol id="ic-terminal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></g></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></g></symbol>
+  <symbol id="ic-activity" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></g></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></g></symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></g></symbol>
+  <symbol id="ic-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></g></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></g></symbol>
+  <symbol id="ic-check-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"></path><path d="m22 10-7.5 7.5L13 16"></path></g></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></g></symbol>
+  <symbol id="ic-monitor" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></g></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></g></symbol>
+  <symbol id="ic-database" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></g></symbol>
+  <symbol id="ic-loader" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></g></symbol>
+  <symbol id="ic-minus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12h14"></path></g></symbol>
+  <symbol id="ic-square" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="13" height="13" x="5.5" y="5.5" rx="1"></rect></g></symbol>
+  <symbol id="ic-tray" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></g></symbol>
+  <symbol id="ic-arrow-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></g></symbol>
+  <symbol id="ic-wallet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path></g></symbol>
+  <symbol id="ic-flame" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></g></symbol>
+  <symbol id="ic-calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></g></symbol>
+  <symbol id="ic-power" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"></path><path d="M18.4 6.6a9 9 0 1 1-12.77.04"></path></g></symbol>
+  <symbol id="ic-rotate" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></g></symbol>
+</svg>
+
+<!-- ══════════ 演示画布 ══════════ -->
+<div class="stage">
+  <div class="stage-bar">
+    <div class="stage-id">
+      <span class="stage-dot"></span>
+      <span class="stage-title">TraeTool · UI 原型</span>
+      <span class="stage-sub">WPF · 980×680 · 150% DPI · 方案 A（6 页）</span>
+    </div>
+    <div class="stage-tools">
+      <div class="tool-group">
+        <span class="tool-label">窗口</span>
+        <div class="seg" id="sizeSeg">
+          <button type="button" class="seg-btn active" data-size="default">980×680</button>
+          <button type="button" class="seg-btn" data-size="compact">860×560</button>
+        </div>
+      </div>
+      <div class="tool-group">
+        <span class="tool-label">状态</span>
+        <div class="seg" id="stateSeg">
+          <button type="button" class="seg-btn active" data-state="normal">常态</button>
+          <button type="button" class="seg-btn" data-state="empty">空态</button>
+          <button type="button" class="seg-btn" data-state="busy">忙碌</button>
+          <button type="button" class="seg-btn" data-state="error">错误</button>
+        </div>
+      </div>
+      <button type="button" class="tool-btn" id="btnMods"><span class="tool-ico">#</span>模块标注</button>
+      <button type="button" class="tool-btn" id="btnSpec">设计规范</button>
+      <button type="button" class="tool-btn" id="btnReset">重置</button>
+    </div>
+  </div>
+
+  <div class="window-wrap" id="windowWrap">
+    <div class="app-window" id="appWindow">
+
+      <!-- 标题栏 -->
+      <header class="titlebar">
+        <div class="tb-left">
+          <span class="app-mark">T</span>
+          <span class="tb-name">TraeTool</span>
+          <span class="tb-sep"></span>
+          <span class="tb-caption">多账号签到 · 客户端切换</span>
+          <span class="tb-ver">v1.4.2</span>
+        </div>
+        <div class="tb-busy" id="tbBusy" data-mod="G6 全局忙碌互斥" hidden="">
+          <span class="spinner"></span>
+          <span id="tbBusyText">批量签到执行中</span>
+        </div>
+        <div class="tb-controls">
+          <button type="button" class="tb-btn" data-win="min" title="最小化到托盘"><svg class="ico"><use href="#ic-minus"></use></svg></button>
+          <button type="button" class="tb-btn" data-win="max" title="最大化（原型固定尺寸）"><svg class="ico"><use href="#ic-square"></use></svg></button>
+          <button type="button" class="tb-btn tb-close" data-win="close" title="关闭（收至托盘）"><svg class="ico"><use href="#ic-x"></use></svg></button>
+        </div>
+      </header>
+
+      <div class="app-main">
+        <!-- G1 左侧导航 -->
+        <aside class="app-nav" data-mod="G1 左侧导航">
+          <div class="nav-head">
+            <div class="nav-brand">TraeTool</div>
+            <div class="nav-sub" id="navSubtitle">—</div>
+          </div>
+          <nav class="nav-list" aria-label="主导航">
+            <a class="nav-item" href="#dashboard" data-nav="dashboard"><svg class="ico"><use href="#ic-dashboard"></use></svg><span>仪表盘</span><em class="nav-run-dot" hidden=""></em></a>
+            <a class="nav-item" href="#checkin" data-nav="checkin"><svg class="ico"><use href="#ic-calendar-check"></use></svg><span>每日签到</span><em class="nav-run-dot" hidden=""></em></a>
+            <a class="nav-item" href="#accounts" data-nav="accounts"><svg class="ico"><use href="#ic-users"></use></svg><span>账号管理</span><em class="nav-run-dot" hidden=""></em></a>
+            <a class="nav-item" href="#switch" data-nav="switch"><svg class="ico"><use href="#ic-switch"></use></svg><span>客户端切换</span><em class="nav-run-dot" hidden=""></em></a>
+            <a class="nav-item" href="#usage" data-nav="usage"><svg class="ico"><use href="#ic-chart"></use></svg><span>用量统计</span><em class="nav-run-dot" hidden=""></em></a>
+            <a class="nav-item" href="#settings" data-nav="settings"><svg class="ico"><use href="#ic-settings"></use></svg><span>设置</span><em class="nav-run-dot" hidden=""></em></a>
+          </nav>
+          <div class="nav-foot">
+            <div class="nav-tip"><svg class="ico"><use href="#ic-tray"></use></svg><span>关窗 = 收至系统托盘，后台继续自动签到</span></div>
+            <div class="nav-run" id="navRun" hidden=""><span class="pulse-dot"></span><span>后台任务执行中</span></div>
+          </div>
+        </aside>
+
+        <!-- 右侧内容区 -->
+        <main class="app-content" id="appContent">
+
+          <!-- ══════ P1 仪表盘 ══════ -->
+          <section class="page" id="page-dashboard" data-page="dashboard">
+            <header class="page-head" data-mod="P1-1 页面顶栏">
+              <div class="ph-left">
+                <h1>仪表盘</h1>
+                <p class="ph-meta">
+                  <svg class="ico ico-14"><use href="#ic-calendar"></use></svg>
+                  <span id="dashDate">—</span><i class="dot-sep"></i><span id="dashMeta">—</span>
+                </p>
+              </div>
+              <div class="ph-actions">
+                <button type="button" class="btn btn-ghost" id="btnDashRefresh"><svg class="ico"><use href="#ic-refresh"></use></svg>刷新</button>
+                <button type="button" class="btn btn-accent" id="btnQuickCheckin">
+                  <svg class="ico"><use href="#ic-check-check"></use></svg>
+                  <span class="btn-stack"><b>立即签到</b><small>全部启用账号</small></span>
+                </button>
+              </div>
+            </header>
+
+            <div class="banner" id="dashBanner" data-mod="P1-2 全局状态横幅" hidden=""></div>
+
+            <div class="stat-grid" data-mod="P1-3 统计卡组">
+              <div class="card stat stat-hero">
+                <div class="stat-label">剩余积分</div>
+                <div class="stat-value" id="statCredits">—</div>
+                <div class="stat-sub" id="statAccount">—</div>
+                <svg class="ico stat-ico"><use href="#ic-wallet"></use></svg>
+              </div>
+              <div class="card stat">
+                <div class="stat-label">今日状态</div>
+                <div class="stat-value stat-value-sm" id="statToday">—</div>
+                <div class="stat-sub" id="statTodaySub">—</div>
+                <svg class="ico stat-ico"><use href="#ic-activity"></use></svg>
+              </div>
+              <div class="card stat">
+                <div class="stat-label">今日总获得</div>
+                <div class="stat-value" id="statReward">—</div>
+                <div class="stat-sub" id="statRewardSub">全部启用账号合计</div>
+                <svg class="ico stat-ico"><use href="#ic-zap"></use></svg>
+              </div>
+              <div class="card stat">
+                <div class="stat-label">连续签到</div>
+                <div class="stat-value" id="statStreak">—</div>
+                <div class="stat-sub" id="statStreakSub">—</div>
+                <svg class="ico stat-ico"><use href="#ic-flame"></use></svg>
+              </div>
+            </div>
+
+            <div class="member-row" id="memberRow" data-mod="P1-4 会员状态条">
+              <span class="status-dot s-ok"></span>
+              <span id="memberText">会员状态读取中…</span>
+              <span class="member-src">来自客户端 entitlementInfo</span>
+            </div>
+
+            <div class="card chart-card" data-mod="P1-5 积分趋势卡">
+              <div class="card-hd">
+                <div class="card-title">剩余积分趋势（近 14 天）</div>
+                <div class="card-meta" id="chartMeta">—</div>
+              </div>
+              <div class="chart-body" id="trendBody">
+                <svg class="trend-svg" id="trendSvg" viewBox="0 0 600 120" preserveAspectRatio="none" aria-label="剩余积分趋势折线图"></svg>
+                <div class="chart-empty" id="trendEmpty" hidden="">
+                  <svg class="ico ico-20"><use href="#ic-chart"></use></svg>
+                  <p>暂无趋势数据（签到 / 刷新后开始记录）</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="dash-bottom">
+              <div class="card cal-card" data-mod="P1-6 签到日历">
+                <div class="card-hd cal-hd">
+                  <div class="card-title">签到日历</div>
+                  <div class="cal-nav">
+                    <button type="button" class="mini-btn" id="calPrev" title="上个月"><svg class="ico"><use href="#ic-chevron-left"></use></svg></button>
+                    <span class="cal-month" id="calMonth">2026 年 11 月</span>
+                    <button type="button" class="mini-btn" id="calNext" title="下个月"><svg class="ico"><use href="#ic-chevron-right"></use></svg></button>
+                  </div>
+                </div>
+                <div class="cal-week" id="calWeek"></div>
+                <div class="cal-grid" id="calGrid"></div>
+                <div class="cal-legend">
+                  <span><i class="legend-dot dot-checked"></i>已签</span>
+                  <span><i class="legend-dot dot-today"></i>今天</span>
+                  <span class="cal-hint" id="calHint"></span>
+                </div>
+              </div>
+
+              <div class="card qa-card" data-mod="P1-7 账号速览">
+                <div class="card-hd">
+                  <div class="card-title">账号速览</div>
+                  <div class="card-meta">点击行 → 切换当前查看账号</div>
+                </div>
+                <div class="qa-list" id="qaList"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ══════ P2 每日签到 ══════ -->
+          <section class="page" id="page-checkin" data-page="checkin">
+            <header class="page-head">
+              <div class="ph-left">
+                <h1>每日签到</h1>
+                <p class="ph-meta">执行、自动签到与记录 · 防重复签到是核心业务语义</p>
+              </div>
+              <div class="ph-actions">
+                <span class="ph-chip" id="checkinCount">—</span>
+              </div>
+            </header>
+
+            <div class="banner" id="checkinBanner" hidden=""></div>
+
+            <div class="card active-card" data-mod="P2-1 当前账号卡">
+              <div class="active-top">
+                <div class="active-pick">
+                  <label class="field-label" for="acctSelect">当前查看账号</label>
+                  <select class="select select-lg" id="acctSelect"></select>
+                  <div class="active-id">
+                    <span class="active-name" id="activeName">—</span>
+                    <span class="badge badge-current">当前</span>
+                  </div>
+                </div>
+                <div class="active-credits">
+                  <div class="ac-num" id="activeCredits">—</div>
+                  <div class="ac-label">剩余积分</div>
+                </div>
+                <div class="active-status">
+                  <span class="status-line"><span class="status-dot" id="activeDot"></span><span id="activeStatus">—</span></span>
+                  <span class="ac-hint">今日 +<span id="activeReward">0</span> · 连签 <span id="activeStreak">0</span> 天</span>
+                </div>
+                <button type="button" class="btn btn-accent btn-lg" id="btnCheckin">
+                  <svg class="ico"><use href="#ic-check-check"></use></svg>
+                  <span class="btn-stack"><b>一键签到</b><small>全部启用账号</small></span>
+                </button>
+              </div>
+              <div class="active-note">
+                <svg class="ico"><use href="#ic-info"></use></svg>
+                <p>切换账号只改变此处展示；一键 / 自动签到始终跑所有勾选参与签到的账号。</p>
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="card status-card" data-mod="P2-2 状态卡">
+                <div class="card-hd">
+                  <div class="card-title">执行状态</div>
+                  <span class="chip" id="runChip">待命</span>
+                </div>
+                <div class="run-now" id="runNow">
+                  <span class="run-idle">尚未执行。点击「一键签到」开始，或等待每日自动签到。</span>
+                </div>
+                <div class="log-box" id="checkinLog">
+                  <div class="log-empty">执行明细会逐行追加在这里</div>
+                </div>
+                <div class="run-hint" id="runHint">
+                  <svg class="ico"><use href="#ic-info"></use></svg>
+                  <span>跳过 / 已签不算失败；9074 冷却期间请勿重复点击。</span>
+                </div>
+              </div>
+
+              <div class="card settings-card" data-mod="P2-3 自动签到设置卡">
+                <div class="card-hd">
+                  <div class="card-title">自动签到设置</div>
+                  <span class="card-meta">本地时间</span>
+                </div>
+                <label class="check-row">
+                  <input type="checkbox" id="autoEnabled">
+                  <span class="check-box"><svg class="ico"><use href="#ic-check"></use></svg></span>
+                  <span class="check-text"><b>开启每日自动签到</b><small>程序需在运行中（可收至托盘）</small></span>
+                </label>
+                <div class="field-row">
+                  <div class="field">
+                    <label class="field-label" for="autoTime">签到时间</label>
+                    <input class="input input-time" type="time" id="autoTime" value="08:30">
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="autoInterval">账号间隔</label>
+                    <div class="input-suffix">
+                      <input class="input" type="number" id="autoInterval" min="5" max="120" value="12">
+                      <span>秒</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="field-hint">
+                  <svg class="ico"><use href="#ic-shield"></use></svg>
+                  <span>执行时会自动附加 ±2 秒随机抖动，规避风控。</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card records-card" data-mod="P2-4 签到记录卡">
+              <div class="card-hd">
+                <div class="card-title">签到记录</div>
+                <div class="hd-tools">
+                  <span class="card-meta" id="recordCount">—</span>
+                  <select class="select select-sm" id="recordFilter">
+                    <option value="all">全部账号</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-wrap table-scroll">
+                <table class="table records-table">
+                  <colgroup><col style="width:88px"><col style="width:92px"><col style="width:88px"><col></colgroup>
+                  <thead><tr><th>时间</th><th>账号</th><th class="ta-r">获得积分</th><th>说明</th></tr></thead>
+                  <tbody id="recordBody"></tbody>
+                </table>
+                <div class="table-empty" id="recordEmpty" hidden="">暂无记录</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ══════ P3 账号管理 ══════ -->
+          <section class="page" id="page-accounts" data-page="accounts">
+            <header class="page-head" data-mod="P3-1 页面顶栏">
+              <div class="ph-left">
+                <h1>账号管理</h1>
+                <p class="ph-meta">登录、参与签到勾选与删除 · <span id="acctMeta">—</span></p>
+              </div>
+              <div class="ph-actions">
+                <button type="button" class="btn btn-ghost" id="btnAcctRefresh"><svg class="ico"><use href="#ic-refresh"></use></svg>刷新状态</button>
+                <button type="button" class="btn btn-accent" id="btnAddAccount"><svg class="ico"><use href="#ic-plus"></use></svg>添加账号</button>
+              </div>
+            </header>
+
+            <div class="banner" id="accountsBanner" data-mod="P3-2 账号状态横幅" hidden=""></div>
+
+            <div class="card accounts-card" data-mod="P3-3 账号列表卡">
+              <div class="card-hd">
+                <div class="card-title">账号列表</div>
+                <div class="card-meta" id="accountsHint">勾选「参与签到」决定批量签到集合</div>
+              </div>
+              <div class="acct-list" id="accountList"></div>
+              <div class="empty-state" id="accountsEmpty" hidden="">
+                <div class="empty-illus"><svg class="ico"><use href="#ic-users"></use></svg></div>
+                <h3>还没有任何账号</h3>
+                <p>添加账号会弹出浏览器完成登录，凭据使用 DPAPI 加密保存在本机。</p>
+                <button type="button" class="btn btn-accent" data-act="add-account"><svg class="ico"><use href="#ic-plus"></use></svg>添加第一个账号</button>
+              </div>
+            </div>
+
+            <div class="foot-hint" data-mod="P3-4 底部引导文案">
+              <svg class="ico"><use href="#ic-info"></use></svg>
+              <span>添加账号会弹出浏览器完成登录；多账号请保持勾选「参与签到」，未勾选的账号不会进入批量签到。</span>
+            </div>
+          </section>
+
+          <!-- ══════ P4 客户端切换 ══════ -->
+          <section class="page page-switch" id="page-switch" data-page="switch">
+            <header class="page-head" data-mod="P4-1 页面顶栏">
+              <div class="ph-left">
+                <h1>客户端切换</h1>
+                <p class="ph-meta">备份 / 回写 Trae 桌面客户端登录态 · 低频但高风险操作</p>
+              </div>
+              <div class="ph-actions path-actions">
+                <div class="path-field">
+                  <svg class="ico"><use href="#ic-monitor"></use></svg>
+                  <input class="input input-path" id="clientPath" placeholder="留空 = 自动探测 Trae.exe" title="填写 Trae.exe 完整路径；留空则自动探测默认安装位置">
+                  <span class="path-tag">留空自动探测</span>
+                </div>
+                <button type="button" class="btn btn-ghost" id="btnDetect"><svg class="ico"><use href="#ic-refresh"></use></svg>检测客户端</button>
+              </div>
+            </header>
+
+            <div class="client-strip" data-mod="P4-2 客户端状态行">
+              <span class="status-dot" id="clientDot"></span>
+              <span id="clientStatusText">—</span>
+              <span class="client-path" id="clientPathText">—</span>
+            </div>
+
+            <div class="banner banner-info" id="switchBanner" data-mod="P4-3 操作状态行" hidden=""></div>
+
+            <div class="card archive-card" data-mod="P4-4 档案列表卡">
+              <div class="card-hd">
+                <div class="card-title">账号档案</div>
+                <div class="card-meta" id="archiveMeta">—</div>
+              </div>
+              <div class="archive-list" id="archiveList"></div>
+              <div class="empty-state compact" id="archiveEmpty" hidden="">
+                <div class="empty-illus"><svg class="ico"><use href="#ic-database"></use></svg></div>
+                <h3>暂无账号档案</h3>
+                <p>添加账号后，使用「建档」为账号备份一次客户端登录态。</p>
+                <button type="button" class="btn btn-ghost" data-act="goto-accounts"><svg class="ico"><use href="#ic-users"></use></svg>去账号管理</button>
+              </div>
+            </div>
+
+            <div class="card log-card" id="switchLogCard" data-mod="P4-5 执行日志卡">
+              <div class="card-hd">
+                <div class="card-title">执行日志</div>
+                <div class="hd-tools">
+                  <span class="log-state" id="logState">空闲</span>
+                  <button type="button" class="mini-btn mini-btn-text" id="btnClearLog">清空</button>
+                </div>
+              </div>
+              <div class="progress-line" id="switchProgress" hidden=""><i></i></div>
+              <div class="term" id="switchLog">
+                <div class="term-empty">日志将按步骤追加：杀进程 → 快照 → 恢复 → 拉起 → 守护 → 回写</div>
+              </div>
+            </div>
+
+            <div class="notes-card" data-mod="P4-6 底部说明文案">
+              <div class="notes-row">
+                <svg class="ico"><use href="#ic-shield"></use></svg>
+                <p>切换会关闭并重启 Trae 客户端；失败时自动回滚，快照位于 <code>%TEMP%\traeswitch_rollback_*</code>。</p>
+              </div>
+              <details class="notes-details">
+                <summary>查看完整说明</summary>
+                <ul>
+                  <li>首次切换前需先「建档」：请在客户端手动登录该账号一次。</li>
+                  <li>建档时会与已有档案做相似度比对，≥ 0.85 会提示可能重复。</li>
+                  <li>「排障」用于登录态异常时校验档案完整性，属于低频工具。</li>
+                  <li>切换过程中请勿关闭程序，守护步骤会校验客户端登录态。</li>
+                </ul>
+              </details>
+            </div>
+          </section>
+
+          <!-- ══════ P5 用量统计 ══════ -->
+          <section class="page" id="page-usage" data-page="usage">
+            <header class="page-head" data-mod="P5-1 页面顶栏">
+              <div class="ph-left">
+                <h1>用量统计</h1>
+                <p class="ph-meta">按会话查看模型消耗 · 积分 / tokens / 明细</p>
+              </div>
+              <div class="ph-actions">
+                <select class="select" id="usageAccount"></select>
+                <select class="select" id="usageRange">
+                  <option value="7">近 7 天</option>
+                  <option value="30">近 30 天</option>
+                </select>
+                <button type="button" class="btn btn-accent" id="btnPullUsage"><svg class="ico"><use href="#ic-refresh"></use></svg>拉取最新</button>
+              </div>
+            </header>
+
+            <div class="banner" id="usageBanner" data-mod="P5-2 状态行" hidden=""></div>
+
+            <div class="summary-band" data-mod="P5-3 汇总行">
+              <div class="sum-item"><span class="sum-label">会话</span><span class="sum-value" id="sumSessions">—</span></div>
+              <div class="sum-item"><span class="sum-label">消耗积分</span><span class="sum-value" id="sumCredits">—</span></div>
+              <div class="sum-item"><span class="sum-label">tokens</span><span class="sum-value" id="sumTokens">—</span></div>
+              <div class="sum-item"><span class="sum-label">折合</span><span class="sum-value" id="sumCost">—</span></div>
+              <span class="sum-scope" id="sumScope">近 7 天 · 全部账号</span>
+            </div>
+
+            <div class="expire-banner" id="expireBanner" data-mod="P5-4 临期积分包提示">
+              <svg class="ico"><use href="#ic-alert"></use></svg>
+              <span>临期积分包：新用户礼包 · <b>500 分</b> · <b>2026-11-12</b> 到期，请尽快使用。</span>
+            </div>
+
+            <div class="card usage-card" data-mod="P5-5 明细表卡">
+              <div class="card-hd">
+                <div class="card-title">会话明细</div>
+                <div class="card-meta">最多展示 200 行 · 预览列截断</div>
+              </div>
+              <div class="table-wrap usage-scroll">
+                <table class="table usage-table">
+                  <colgroup><col style="width:92px"><col style="width:128px"><col style="width:66px"><col style="width:70px"><col style="width:96px"><col></colgroup>
+                  <thead><tr><th>时间</th><th>模型</th><th>模式</th><th class="ta-r">积分</th><th class="ta-r">tokens</th><th>输入预览</th></tr></thead>
+                  <tbody id="usageBody"></tbody>
+                </table>
+                <div class="table-empty" id="usageEmpty" hidden="">近 <span id="usageEmptyDays">7</span> 天暂无记录</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ══════ P6 设置 ══════ -->
+          <section class="page" id="page-settings" data-page="settings">
+            <header class="page-head" data-mod="P6-1 页面顶栏">
+              <div class="ph-left">
+                <h1>设置</h1>
+                <p class="ph-meta">通用行为与关于 · 账号相关配置在「账号管理」</p>
+              </div>
+            </header>
+
+            <div class="card settings-page-card" data-mod="P6-2 行为设置卡">
+              <div class="card-hd"><div class="card-title">行为设置</div><div class="card-meta">立即生效</div></div>
+              <label class="check-row check-row-lg">
+                <input type="checkbox" id="setAutostart">
+                <span class="check-box"><svg class="ico"><use href="#ic-check"></use></svg></span>
+                <span class="check-text"><b>开机自动启动</b><small>登录 Windows 后自动运行，静默收至托盘。</small></span>
+              </label>
+              <label class="check-row check-row-lg">
+                <input type="checkbox" id="setTray" checked="">
+                <span class="check-box"><svg class="ico"><use href="#ic-check"></use></svg></span>
+                <span class="check-text"><b>关闭窗口时收到系统托盘</b><small>后台继续自动签到；点击托盘图标可恢复窗口。</small></span>
+              </label>
+              <label class="check-row check-row-lg">
+                <input type="checkbox" id="setDevice">
+                <span class="check-box"><svg class="ico"><use href="#ic-check"></use></svg></span>
+                <span class="check-text"><b>新账号优先使用本机 Trae 客户端真实设备号</b><small>每个账号会独立生成 16 位设备号；共用同一设备号会被服务端每日去重。</small></span>
+              </label>
+              <div class="field-hint">
+                <svg class="ico"><use href="#ic-shield"></use></svg>
+                <span>设备号仅保存在本机配置中，不会随档案上传。</span>
+              </div>
+            </div>
+
+            <div class="card about-card" data-mod="P6-3 关于卡">
+              <div class="about-top">
+                <span class="about-mark">T</span>
+                <div class="about-name">
+                  <b>TraeTool</b>
+                  <span>多账号签到与客户端切换工具 · 单实例运行</span>
+                </div>
+                <span class="about-ver">v1.4.2</span>
+              </div>
+              <div class="about-grid">
+                <div class="about-item"><span class="about-k">日志位置</span><span class="about-v mono">%LOCALAPPDATA%\TraeTool\logs\</span></div>
+                <div class="about-item"><span class="about-k">配置存储</span><span class="about-v">DPAPI 加密 · 仅当前 Windows 用户可解密</span></div>
+                <div class="about-item"><span class="about-k">开源参考</span><span class="about-v">TraeTools（GPL） · AI Work（MIT）</span></div>
+                <div class="about-item"><span class="about-k">单实例</span><span class="about-v">重复启动会唤醒已有窗口，避免重复签到</span></div>
+              </div>
+              <div class="about-foot">本工具为本地效率工具，与 Trae 官方无关。签到与切换均在本机完成，不上传账号凭据。</div>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <div class="toast-wrap" id="toastWrap"></div>
+    </div>
+  </div>
+
+  <div class="stage-foot">双击 <code>index.html</code> 即可离线演示 · 交互均为前端模拟，无真实后端</div>
+</div>
+
+<!-- ══════════ G5 通用对话框 ══════════ -->
+<div class="overlay" id="dialogOverlay" hidden="">
+  <div class="dialog" id="dialog" role="dialog" aria-modal="true" data-mod="G5 通用对话框"></div>
+</div>
+
+<!-- ══════════ G3 登录窗口 ══════════ -->
+<div class="overlay overlay-login" id="loginOverlay" hidden="">
+  <div class="login-win" role="dialog" aria-modal="true" aria-label="登录 Trae 账号" data-mod="G3 登录窗口">
+    <div class="login-titlebar">
+      <div class="lt-left"><span class="app-mark small">T</span><span>登录 Trae 账号</span></div>
+      <div class="lt-right">
+        <button type="button" class="mini-btn mini-btn-ghost" id="btnLoginDemo">演示：模拟登录成功</button>
+        <button type="button" class="tb-btn" id="btnLoginClose" title="关闭"><svg class="ico"><use href="#ic-x"></use></svg></button>
+      </div>
+    </div>
+    <div class="login-notice">
+      <svg class="ico"><use href="#ic-info"></use></svg>
+      <p>请在下方浏览器内登录 TRAE（手机号 + 验证码）。登录成功后本窗口会自动识别并关闭。</p>
+    </div>
+    <div class="browser">
+      <div class="browser-bar">
+        <span class="b-dot"></span><span class="b-dot"></span><span class="b-dot"></span>
+        <div class="address"><svg class="ico"><use href="#ic-shield"></use></svg><span>https://www.trae.ai/login</span></div>
+        <span class="b-secure">WebView2</span>
+      </div>
+      <div class="browser-page">
+        <div class="login-card">
+          <div class="lc-brand"><span class="lc-logo">T</span><span class="lc-name">TRAE</span></div>
+          <div class="lc-tabs"><button type="button" class="lc-tab active">手机号登录</button><button type="button" class="lc-tab">扫码登录</button></div>
+          <label class="field-label">手机号</label>
+          <input class="input input-lg" id="loginPhone" value="138 0013 8000" inputmode="numeric">
+          <label class="field-label">验证码</label>
+          <div class="code-row">
+            <input class="input input-lg" id="loginCode" placeholder="6 位验证码" value="8842">
+            <button type="button" class="btn btn-ghost" id="btnSendCode">获取验证码</button>
+          </div>
+          <button type="button" class="btn btn-accent btn-lg btn-block" id="btnLoginSubmit">登录</button>
+          <p class="lc-agree">登录即代表同意《用户协议》与《隐私政策》</p>
+        </div>
+      </div>
+    </div>
+    <div class="login-ft">
+      <span class="lf-left"><span class="spinner" id="loginSpinner"></span><span id="loginStatus">正在初始化浏览器…</span></span>
+      <span class="lf-hint">凭据将以 DPAPI 加密保存到本机</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ G4 建档向导 ══════════ -->
+<div class="overlay" id="wizardOverlay" hidden="">
+  <div class="wizard" role="dialog" aria-modal="true" aria-label="建立客户端档案" data-mod="G4 建档向导">
+    <div class="wizard-hd">
+      <div class="w-hd-left">
+        <span class="w-icon"><svg class="ico"><use href="#ic-shield"></use></svg></span>
+        <div>
+          <h3>建立客户端档案</h3>
+          <p id="wizardSub">为账号备份一次 Trae 客户端登录态</p>
+        </div>
+      </div>
+      <button type="button" class="mini-btn" id="wizardClose" title="取消"><svg class="ico"><use href="#ic-x"></use></svg></button>
+    </div>
+    <div class="wizard-steps" id="wizardSteps"></div>
+    <div class="wizard-body" id="wizardBody"></div>
+    <div class="wizard-ft" id="wizardFooter"></div>
+  </div>
+</div>
+
+<!-- ══════════ 托盘（G2） ══════════ -->
+<div class="tray-dock" id="trayDock" hidden="">
+  <div class="tray-bubble" id="trayBubble" data-mod="G2 托盘气泡（仅获得积分 &gt; 0 时弹出）">
+    <strong id="trayTitle">TraeTool 已收至托盘</strong>
+    <span id="trayText">后台继续自动签到，双击托盘图标可恢复窗口。</span>
+  </div>
+  <button type="button" class="tray-icon" id="btnTrayRestore" title="恢复窗口">
+    <span class="app-mark tiny">T</span>
+    <span class="tray-label">TraeTool</span>
+  </button>
+</div>
+
+<!-- ══════════ 设计规范面板 ══════════ -->
+<div class="spec-overlay" id="specPanel" hidden="">
+  <div class="spec-panel">
+    <div class="spec-hd">
+      <div>
+        <div class="spec-kicker">DESIGN SPEC</div>
+        <h2>TraeTool 界面规范</h2>
+        <p>方案 A · 6 导航页 · WPF 980×680（最小 860×560）· 150% DPI</p>
+      </div>
+      <button type="button" class="mini-btn" id="specClose"><svg class="ico"><use href="#ic-x"></use></svg></button>
+    </div>
+    <div class="spec-body">
+      <section>
+        <h3>01 信息架构</h3>
+        <p>采用<b>方案 A</b>：仪表盘 / 每日签到 / 账号管理 / 客户端切换 / 用量统计 / 设置。设置从原「账号管理」拆出，使账号列表职责单一，并给导航一个稳定的收尾项；「左导航 + 右内容」结构保持不变，六页常驻内存、切换仅改可见性。</p>
+      </section>
+      <section>
+        <h3>02 色板</h3>
+        <div class="swatches">
+          <div class="sw"><i style="background:#2C5BF6"></i><span>主强调</span><b>#2C5BF6</b></div>
+          <div class="sw"><i style="background:#1E45C9"></i><span>强调·悬停</span><b>#1E45C9</b></div>
+          <div class="sw"><i style="background:#0E9B6C"></i><span>成功 / 已签</span><b>#0E9B6C</b></div>
+          <div class="sw"><i style="background:#B87513"></i><span>警示 / 今天</span><b>#B87513</b></div>
+          <div class="sw"><i style="background:#CF4141"></i><span>危险 / 失败</span><b>#CF4141</b></div>
+          <div class="sw"><i style="background:#151B24"></i><span>导航底</span><b>#151B24</b></div>
+          <div class="sw"><i style="background:#F3F4F1"></i><span>页面背景</span><b>#F3F4F1</b></div>
+          <div class="sw"><i style="background:#FFFFFF;border-color:#ddd"></i><span>卡片</span><b>#FFFFFF</b></div>
+          <div class="sw"><i style="background:#151A22"></i><span>主文字</span><b>#151A22</b></div>
+          <div class="sw"><i style="background:#5B6675"></i><span>次文字</span><b>#5B6675</b></div>
+          <div class="sw"><i style="background:#E4E6E1"></i><span>分割线</span><b>#E4E6E1</b></div>
+        </div>
+        <p class="spec-note">语义色仅用于状态，不参与大面积装饰；徽标「当前」用蓝色、「客户端当前」用绿色，两者语义不同、同页可并存。</p>
+      </section>
+      <section>
+        <h3>03 字体与数字</h3>
+        <div class="type-rows">
+          <div><span class="t-display">28 / Bahnschrift</span><span>积分大数字、统计卡数值、日历日期（等宽感、字形更硬朗）</span></div>
+          <div><span class="t-h1">20 / 600</span><span>页面标题</span></div>
+          <div><span class="t-h2">13 / 700</span><span>卡片标题</span></div>
+          <div><span class="t-body">12.5 / 400</span><span>正文（微软雅黑 UI），最小 11px</span></div>
+          <div><span class="t-mono">11 / mono</span><span>日志与路径（Cascadia Code / Consolas）</span></div>
+        </div>
+        <p class="spec-note">数字使用 Bahnschrift 的等宽数字，积分可能到 4 位数 + 1 位小数，卡片已预留宽度且不换行。</p>
+      </section>
+      <section>
+        <h3>04 间距 / 圆角 / 阴影</h3>
+        <div class="token-grid">
+          <div><b>4px 基准</b><span>4 · 8 · 12 · 16 · 24 · 32</span></div>
+          <div><b>圆角</b><span>6 控件 / 10 按钮·输入 / 14 卡片</span></div>
+          <div><b>阴影</b><span>卡片 0 1px 2px rgba(18,24,32,.05) / 悬停 0 6px 18px</span></div>
+          <div><b>描边</b><span>1px #E4E6E1；150% DPI 建议 1.5px 设备像素对齐</span></div>
+        </div>
+      </section>
+      <section>
+        <h3>05 组件规格</h3>
+        <ul class="spec-list">
+          <li><b>AccentButton</b>：32px 高（大号 38px），主色实心，每屏仅一个；禁用态降为灰蓝并去掉阴影。</li>
+          <li><b>GhostButton</b>：白底 + 1px 描边，悬停描边加深；用于刷新、检测、登录等次要动作。</li>
+          <li><b>Card / CardTitle</b>：白底 14px 圆角 + 1px 发丝边框；标题 12.5/700，头部右侧放元信息。</li>
+          <li><b>NavButton</b>：40px 高胶囊，选中态为深色微亮底 + 2px 主色内边线，不是整块高饱和填充。</li>
+          <li><b>Badge</b>：18px 高，10px 字号；「当前」蓝、「客户端当前」绿。</li>
+          <li><b>状态点</b>：6px 圆点 + 文字，颜色只在状态点与文字上，不染色整行。</li>
+          <li><b>输入</b>：32px 高，聚焦时 2px 主色柔光环；时间 / 秒数用等宽数字。</li>
+          <li><b>表格</b>：表头吸顶、行高 30、偶数行微底纹、数字右对齐、预览列 Ellipsis。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>06 状态语义（红线）</h3>
+        <table class="spec-table">
+          <thead><tr><th>文案</th><th>颜色</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td>今日已签</td><td class="c-ok">绿</td><td>正常态，跳过不算失败</td></tr>
+            <tr><td>未登录</td><td class="c-warn">橙</td><td>凭据缺失，需去账号管理登录</td></tr>
+            <tr><td>会话失效，请重新登录</td><td class="c-warn">橙</td><td>登录态过期，可引导重新登录</td></tr>
+            <tr><td>9074 限流冷却中 / 补跑中</td><td class="c-info">蓝</td><td>中性等待，不是错误</td></tr>
+            <tr><td>签到失败（code=N）</td><td class="c-danger">红</td><td>真实失败，记录入库</td></tr>
+          </tbody>
+        </table>
+        <p class="spec-note">「跳过 / 已签」绝不渲染为错误色；失败记录在记录表中以红色左侧标记区分，并保留 Reason。</p>
+      </section>
+      <section>
+        <h3>07 状态覆盖矩阵</h3>
+        <table class="spec-table matrix">
+          <thead><tr><th>页面</th><th>常态</th><th>空态</th><th>加载</th><th>错误</th><th>禁用</th></tr></thead>
+          <tbody>
+            <tr><td>P1 仪表盘</td><td>4 卡 + 趋势 + 日历</td><td>无账号 / 无趋势</td><td>刷新中</td><td>顶部横幅</td><td>签到按钮锁定</td></tr>
+            <tr><td>P2 签到</td><td>待命 / 记录</td><td>无记录</td><td>进度行 + 倒计时</td><td>失败行红</td><td>9074 期间禁用</td></tr>
+            <tr><td>P3 账号</td><td>5 个账号</td><td>居中插画 + 按钮</td><td>刷新中</td><td>状态横幅</td><td>互斥锁全禁用</td></tr>
+            <tr><td>P4 切换</td><td>3 档案</td><td>无档案</td><td>日志 + 进度条</td><td>橙色待确认</td><td>切换中禁用</td></tr>
+            <tr><td>P5 用量</td><td>明细表</td><td>近 N 天暂无</td><td>骨架行</td><td>引导先去登录</td><td>拉取中禁用</td></tr>
+            <tr><td>P6 设置</td><td>3 项开关</td><td>—</td><td>即时生效</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h3>08 交互说明</h3>
+        <ul class="spec-list">
+          <li><b>导航</b>：六页常驻，切换只改可见性；侧栏位置固定，选中态由 <code>data-page</code> 单一规则驱动。</li>
+          <li><b>忙碌互斥</b>：批量签到锁与切换锁互斥；锁定时相关按钮禁用并在 title 中说明原因；标题栏出现「后台任务执行中」药丸，任意页面可见。</li>
+          <li><b>徽标</b>：「当前」= 程序内查看的账号（P2 下拉切换）；「客户端当前」= 桌面客户端登录态（档案比对裁决），颜色与位置均不同。</li>
+          <li><b>向导</b>：五步 indicator，始终可取消；相似度 ≥0.85 时必须勾选确认才能建档；等待客户端登录时给出明确的「已完成登录」出口。</li>
+          <li><b>托盘气泡</b>：仅当批量签到实际获得积分 &gt; 0 才弹「签到成功 +N」；全部跳过 / 失败不弹，避免「重复签到」误解。</li>
+          <li><b>切换叙事</b>：确认 → 日志逐步可见 → 成功/回滚；排障按钮弱化为幽灵样式并配 ToolTip。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>09 WPF 落地备注</h3>
+        <ul class="spec-list">
+          <li>保留现有样式语义名：<code>Card</code> / <code>CardTitle</code> / <code>AccentButton</code> / <code>GhostButton</code> / <code>NavButton</code>，外观按本规范重写即可。</li>
+          <li>侧导航固定 <code>212px</code>，内容区 <code>ScrollViewer</code> 纵向滚动；860×560 下仪表盘底部卡片可滚动，不破版。</li>
+          <li>趋势图由固定 520 Canvas 改为按容器宽度重算坐标（<code>ActualWidth</code> 变化时重绘），Y 轴保持 3 刻度。</li>
+          <li>日志区使用等宽字体、逐行追加并自动滚动到底部；切换开始时把日志卡滚入视野。</li>
+          <li>所有图标为本规范同款 Lucide 线性图标，落地时转为 Path 几何数据（stroke 1.75 / 24 网格）。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>10 模块清单</h3>
+        <p class="spec-note">P1-1 ~ P1-7、P2-1 ~ P2-4、P3-1 ~ P3-4、P4-1 ~ P4-6、P5-1 ~ P5-5、P6-1 ~ P6-3、G1 ~ G6 均已落位，无删减合并。点击顶部「模块标注」可在窗口中逐模块核对编号。</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="mock.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
+
+
+</body></html>

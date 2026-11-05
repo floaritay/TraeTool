@@ -1,0 +1,281 @@
+<UserControl x:Class="TraeTool.Views.UsagePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:TraeTool.Views"
+             xmlns:icons="clr-namespace:TraeTool.Resources"
+             Background="{DynamicResource BgBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+        <StackPanel>
+
+            <!-- P5-1 页头 -->
+            <DockPanel Margin="0,0,0,14">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <ComboBox Style="{StaticResource Combo}" Width="168" Margin="0,0,8,0"
+                              ItemsSource="{Binding Accounts}"
+                              DisplayMemberPath="Name" SelectedValuePath="Id"
+                              SelectedValue="{Binding SelectedAccountId}"/>
+                    <ComboBox Style="{StaticResource Combo}" Width="92" Margin="0,0,8,0"
+                              SelectionChanged="OnRangeChanged">
+                        <ComboBoxItem Content="近 7 天" Tag="7" IsSelected="True"/>
+                        <ComboBoxItem Content="近 30 天" Tag="30"/>
+                    </ComboBox>
+                    <Button Style="{StaticResource AccentButton}" Command="{Binding RefreshCommand}"
+                            IsEnabled="{Binding Busy, Converter={x:Static views:InvertBoolConverter.Instance}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{x:Static icons:Icons.Refresh}" Style="{StaticResource Ico}"
+                                  Width="13" Height="13"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Margin="0,0,7,0"/>
+                            <StackPanel>
+                                <TextBlock Text="拉取最新" Style="{StaticResource BtnMain}"/>
+                                <TextBlock Text="联网获取所选时间范围" Style="{StaticResource BtnSub}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="用量统计" Style="{StaticResource PageTitle}"/>
+                    <TextBlock Text="按会话查看模型消耗 · 积分 / tokens / 明细"
+                               Style="{StaticResource PageMeta}"/>
+                </StackPanel>
+            </DockPanel>
+
+            <!-- P5-2 状态行 -->
+            <Border Style="{StaticResource BannerInfo}" Margin="0,0,0,12"
+                    Visibility="{Binding StatusMessage, Converter={x:Static views:NonEmptyConverter.Instance}}">
+                <DockPanel>
+                    <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Info}" Style="{StaticResource Ico}"
+                          Width="14" Height="14" Stroke="{DynamicResource PrimaryBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="11.5"
+                               Foreground="{DynamicResource PrimaryStrongBrush}" TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <!-- P5-3 汇总带 -->
+            <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="14" Padding="6,0" Margin="0,0,0,12">
+                <!-- 「折合（≈元）」已按需求移除：cost_money 字段语义未核实，不展示不确定的换算 -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="14,11">
+                        <TextBlock Text="会话" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Text="{Binding SumSessions}" Style="{StaticResource StatValue}" FontSize="21"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="{DynamicResource BorderBrush}" Margin="0,10"/>
+                    <StackPanel Grid.Column="2" Margin="14,11">
+                        <TextBlock Text="消耗积分" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Text="{Binding SumCredits}" Style="{StaticResource StatValue}" FontSize="21"
+                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                    </StackPanel>
+                    <Border Grid.Column="3" Background="{DynamicResource BorderBrush}" Margin="0,10"/>
+                    <StackPanel Grid.Column="4" Margin="14,11">
+                        <TextBlock Text="tokens" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Text="{Binding SumTokens}" Style="{StaticResource StatValue}" FontSize="21"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="5" Text="{Binding SumScope}" FontSize="10"
+                               Foreground="{DynamicResource MuteBrush}" VerticalAlignment="Center"
+                               Margin="0,0,14,0"/>
+                </Grid>
+            </Border>
+
+            <!-- 模型分布（按当前范围聚合：会话/积分/tokens/缓存命中 + 占比条） -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock DockPanel.Dock="Right" Text="按当前账号与时间范围聚合"
+                                   Style="{StaticResource CardMeta}" VerticalAlignment="Center"/>
+                        <TextBlock Text="模型分布" Style="{StaticResource CardTitle}" Margin="0"/>
+                    </DockPanel>
+
+                    <Grid Margin="2,0,2,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="56"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="64"/>
+                            <ColumnDefinition Width="118"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="模型" Style="{StaticResource Th}"/>
+                        <TextBlock Grid.Column="1" Text="会话" Style="{StaticResource Th}" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="2" Text="积分" Style="{StaticResource Th}" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="3" Text="tokens" Style="{StaticResource Th}" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="4" Text="缓存命中" Style="{StaticResource Th}"
+                                   HorizontalAlignment="Right" FontSize="10"/>
+                        <TextBlock Grid.Column="5" Text="积分占比" Style="{StaticResource Th}" Margin="10,0,0,0"/>
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding ModelStats}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="2,6" BorderThickness="0,0,0,1"
+                                        BorderBrush="{DynamicResource BorderBrush}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="56"/>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="64"/>
+                                            <ColumnDefinition Width="118"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Model}" FontSize="11.5"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Sessions}" FontSize="11"
+                                                   Foreground="{DynamicResource SubBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding CreditsText}" FontSize="11"
+                                                   FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding TokensText}" FontSize="10.5"
+                                                   Foreground="{DynamicResource SubBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding HitText}" FontSize="10.5"
+                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        <Grid Grid.Column="5" Margin="10,0,0,0" Height="8" VerticalAlignment="Center">
+                                            <Border CornerRadius="4" Background="{DynamicResource BorderBrush}"/>
+                                            <Border CornerRadius="4" HorizontalAlignment="Left"
+                                                    Background="{DynamicResource PrimaryBrush}"
+                                                    Width="{Binding BarWidth}"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="暂无模型数据" FontSize="11"
+                               Foreground="{DynamicResource MuteBrush}" Margin="2,4,0,0"
+                               Visibility="{Binding ModelStats.Count, Converter={x:Static views:ZeroToVisConverter.Instance}}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- P5-4 临期积分包 -->
+            <Border Style="{StaticResource BannerWarn}" Margin="0,0,0,12"
+                    Visibility="{Binding ExpiredText, Converter={x:Static views:NonEmptyConverter.Instance}}">
+                <DockPanel>
+                    <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Alert}" Style="{StaticResource Ico}"
+                          Width="14" Height="14" Stroke="{DynamicResource WarnBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding ExpiredText}" FontSize="11.5"
+                               Foreground="{DynamicResource WarnBrush}" TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <!-- P5-5 明细表卡 -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock DockPanel.Dock="Right" Text="最多展示 200 行 · 预览列截断"
+                                   Style="{StaticResource CardMeta}" VerticalAlignment="Center"/>
+                        <TextBlock Text="会话明细" Style="{StaticResource CardTitle}" Margin="0"/>
+                    </DockPanel>
+
+                    <!-- 表头 -->
+                    <Border Background="{DynamicResource Surface2Brush}" CornerRadius="7" Padding="12,7"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            Margin="0,0,0,2">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="88"/>
+                                <ColumnDefinition Width="128"/>
+                                <ColumnDefinition Width="64"/>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="96"/>
+                                <ColumnDefinition Width="54"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="时间" Style="{StaticResource Th}"/>
+                            <TextBlock Grid.Column="1" Text="模型" Style="{StaticResource Th}"/>
+                            <TextBlock Grid.Column="2" Text="模式" Style="{StaticResource Th}"/>
+                            <TextBlock Grid.Column="3" Text="积分" Style="{StaticResource Th}"
+                                       HorizontalAlignment="Right"/>
+                            <TextBlock Grid.Column="4" Text="tokens" Style="{StaticResource Th}"
+                                       HorizontalAlignment="Right" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="5" Text="缓存" Style="{StaticResource Th}"
+                                       HorizontalAlignment="Right"/>
+                            <TextBlock Grid.Column="6" Text="输入预览" Style="{StaticResource Th}"
+                                       Margin="8,0,0,0"/>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="430">
+                        <ItemsControl ItemsSource="{Binding Rows}" AlternationCount="2">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="12,7" BorderThickness="0,0,0,1"
+                                            BorderBrush="{DynamicResource BorderBrush}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding (ItemsControl.AlternationIndex)}" Value="1">
+                                                        <Setter Property="Background" Value="{DynamicResource RowZebraBrush}"/>
+                                                    </DataTrigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="88"/>
+                                                <ColumnDefinition Width="128"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="96"/>
+                                                <ColumnDefinition Width="54"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" FontSize="10.5"
+                                                       Foreground="{DynamicResource MuteBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Model}" FontSize="11"
+                                                       Foreground="{DynamicResource TextBrush}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Mode}" FontSize="11"
+                                                       Foreground="{DynamicResource TextBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding CreditsText}" FontSize="11"
+                                                       FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding TokensText}" FontSize="10.5"
+                                                       Foreground="{DynamicResource SubBrush}"
+                                                       HorizontalAlignment="Right" Margin="0,0,12,0"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding CacheHitText}" FontSize="10.5"
+                                                       Foreground="{DynamicResource SuccessBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="6" Text="{Binding Preview}" FontSize="10.5"
+                                                       Foreground="{DynamicResource MuteBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Text="所选时间范围内暂无记录（点「拉取最新」联网获取）" FontSize="11"
+                               Foreground="{DynamicResource MuteBrush}" Margin="2,8,0,0"
+                               Visibility="{Binding Rows.Count, Converter={x:Static views:ZeroToVisConverter.Instance}}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

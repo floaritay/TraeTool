@@ -1,0 +1,26 @@
+# ── 构建产物 ─────────────────────────────────
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+*.wpftmp.*
+
+# ── 本地截图（含真实 UID/手机号，禁止入库）──────
+/ui-*.png
+/exe-icon-check.png
+
+# ── 更新源测试物料（14MB，仅本地自检用）─────────
+/_updatefeed/
+
+# ── 运行期数据与日志（实际落在 %APPDATA%，双保险）─
+*.log
+*.db
+*.db-wal
+*.db-shm
+
+# ── 编辑器 / 系统 ────────────────────────────────
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini

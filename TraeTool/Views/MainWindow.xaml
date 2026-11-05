@@ -1,0 +1,204 @@
+<Window x:Class="TraeTool.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:TraeTool.ViewModels"
+        xmlns:icons="clr-namespace:TraeTool.Resources"
+        xmlns:views="clr-namespace:TraeTool.Views"
+        xmlns:svc="clr-namespace:TraeTool.Services"
+        Title="TraeTool"
+        Icon="/TraeTool;component/app.ico"
+        Width="980" Height="680"
+        MinWidth="860" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None" ResizeMode="CanResize"
+        Background="{DynamicResource BgBrush}"
+        FontFamily="{StaticResource FontBody}" FontSize="12.5"
+        Foreground="{DynamicResource TextBrush}">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="38" ResizeBorderThickness="6"
+                      GlassFrameThickness="-1" CornerRadius="0"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="38"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ══════ 标题栏（自绘） ══════ -->
+        <Border Grid.Row="0" Background="{DynamicResource Nav2Brush}">
+            <DockPanel LastChildFill="False">
+                <!-- caption 带内的可点击控件必须开 IsHitTestVisibleInChrome，
+                     否则整条标题栏命中测试都归系统 caption（可拖动但点不动按钮） -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button WindowChrome.IsHitTestVisibleInChrome="True"
+                            Style="{StaticResource TitleBarButton}" Click="OnMinClick"
+                            ToolTip="最小化">
+                        <Path Data="{x:Static icons:Icons.Minus}" Stretch="Uniform"
+                              Width="11" Height="11" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                    </Button>
+                    <Button WindowChrome.IsHitTestVisibleInChrome="True"
+                            Style="{StaticResource TitleBarButton}" Click="OnMaxClick"
+                            ToolTip="最大化 / 还原">
+                        <Path Data="{x:Static icons:Icons.Square}" Stretch="Uniform"
+                              Width="10" Height="10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                    </Button>
+                    <Button WindowChrome.IsHitTestVisibleInChrome="True"
+                            Style="{StaticResource TitleBarCloseButton}" Click="OnCloseClick"
+                            ToolTip="关闭（收至托盘）">
+                        <Path Data="{x:Static icons:Icons.X}" Stretch="Uniform"
+                              Width="11" Height="11" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- 全局忙碌药丸（G6） -->
+                <Border DockPanel.Dock="Right" Style="{StaticResource Chip}" Margin="0,0,10,0"
+                        Background="{DynamicResource PrimarySoftBrush}"
+                        BorderBrush="{DynamicResource PrimaryLineBrush}"
+                        Visibility="{Binding BusyText, Converter={x:Static views:NonEmptyConverter.Instance}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="7" Height="7" Fill="{DynamicResource PrimaryBrush}" Margin="0,0,7,0"
+                                 VerticalAlignment="Center">
+                            <Ellipse.Triggers>
+                                <EventTrigger RoutedEvent="Ellipse.Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                             From="1" To="0.25" Duration="0:0:0.7"
+                                                             AutoReverse="True" RepeatBehavior="Forever"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </Ellipse.Triggers>
+                        </Ellipse>
+                        <TextBlock Text="{Binding BusyText}" FontSize="10.5"
+                                   Foreground="{DynamicResource PrimaryStrongBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 应用标识 -->
+                <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <Border Width="18" Height="18" CornerRadius="5" Background="{DynamicResource PrimaryBrush}">
+                        <TextBlock Text="T" FontFamily="{StaticResource FontDisplay}" FontSize="11"
+                                   FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="TraeTool" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="#DBE3EF" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    <Border Width="1" Height="12" Background="#1FFFFFFF" Margin="9,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="多账号签到 · 客户端切换" FontSize="10" Foreground="#7C8899"
+                               VerticalAlignment="Center"/>
+                    <Border BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="4" Padding="5,1"
+                            Margin="8,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{x:Static svc:UpdateService.CurrentVersionText}"
+                                   FontFamily="{StaticResource FontMono}" FontSize="9.5"
+                                   Foreground="#5F6B7C"/>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ══════ 主体：左导航 + 右内容 ══════ -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="184"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- G1 左侧导航 -->
+            <Border Grid.Column="0" Background="{DynamicResource NavBrush}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Margin="0,20,0,14">
+                        <TextBlock Text="TraeTool" Foreground="White" FontSize="15" FontWeight="Bold"
+                                   Margin="18,0,0,2"/>
+                        <TextBlock Text="{Binding TitleSubtitle}" Foreground="#7C8899" FontSize="10.5"
+                                   Margin="18,0,16,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Border Height="1" Background="#10FFFFFF" Margin="12,0,12,10"/>
+                        <StackPanel Orientation="Horizontal" Margin="17,0,12,6">
+                            <Path Data="{x:Static icons:Icons.Tray}" Style="{StaticResource Ico}"
+                                  Width="13" Height="13" Stroke="#6B7889" Margin="0,1,8,0"/>
+                            <TextBlock Text="关窗 = 收至系统托盘，后台继续自动签到"
+                                       Foreground="#6B7889" FontSize="9.5" TextWrapping="Wrap"
+                                       Width="126"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel>
+                        <RadioButton x:Name="NavDash" Style="{StaticResource NavButton}" IsChecked="True"
+                                     Checked="OnNavDashboard">
+                            <DockPanel>
+                                <Ellipse x:Name="NavDotDash" DockPanel.Dock="Right" Width="5" Height="5"
+                                         Fill="#E0A64A" Margin="8,0,2,0" VerticalAlignment="Center"
+                                         Visibility="{Binding IsBatchRunning, Converter={x:Static views:BoolToVisConverter.TrueInstance}}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{x:Static icons:Icons.Dashboard}" Style="{StaticResource Ico}"
+                                          Width="16" Height="16"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="仪表盘" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource NavButton}" x:Name="NavCheckin" Checked="OnNavCheckin">
+                            <DockPanel>
+                                <Ellipse DockPanel.Dock="Right" Width="5" Height="5"
+                                         Fill="#E0A64A" Margin="8,0,2,0" VerticalAlignment="Center"
+                                         Visibility="{Binding IsBatchRunning, Converter={x:Static views:BoolToVisConverter.TrueInstance}}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{x:Static icons:Icons.CalendarCheck}" Style="{StaticResource Ico}"
+                                          Width="16" Height="16"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="每日签到" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource NavButton}" x:Name="NavAccounts" Checked="OnNavAccounts">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{x:Static icons:Icons.Users}" Style="{StaticResource Ico}"
+                                      Width="16" Height="16"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="账号管理" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource NavButton}" x:Name="NavSwitch" Checked="OnNavSwitch">
+                            <DockPanel>
+                                <Ellipse DockPanel.Dock="Right" Width="5" Height="5"
+                                         Fill="#E0A64A" Margin="8,0,2,0" VerticalAlignment="Center"
+                                         Visibility="{Binding IsSwitchRunning, Converter={x:Static views:BoolToVisConverter.TrueInstance}}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{x:Static icons:Icons.Switch}" Style="{StaticResource Ico}"
+                                          Width="16" Height="16"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="客户端切换" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource NavButton}" x:Name="NavUsage" Checked="OnNavUsage">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{x:Static icons:Icons.Chart}" Style="{StaticResource Ico}"
+                                      Width="16" Height="16"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="用量统计" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource NavButton}" x:Name="NavSettings" Checked="OnNavSettings">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{x:Static icons:Icons.Settings}" Style="{StaticResource Ico}"
+                                      Width="16" Height="16"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="设置" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- 右侧内容：六页同时驻留，切换 Visibility 保留页面状态 -->
+            <Grid x:Name="PageHost" Grid.Column="1"/>
+        </Grid>
+    </Grid>
+</Window>

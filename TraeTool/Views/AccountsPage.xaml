@@ -1,0 +1,321 @@
+<UserControl x:Class="TraeTool.Views.AccountsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:TraeTool.ViewModels"
+             xmlns:views="clr-namespace:TraeTool.Views"
+             xmlns:icons="clr-namespace:TraeTool.Resources"
+             Background="{DynamicResource BgBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+        <StackPanel>
+
+            <!-- P3-1 页头 -->
+            <DockPanel Margin="0,0,0,14">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <!-- 从本机客户端导入（只读提取登录态，免浏览器登录） -->
+                    <Button Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            Command="{Binding ImportClientCredentialsCommand}"
+                            IsEnabled="{Binding Busy, Converter={x:Static views:InvertBoolConverter.Instance}}"
+                            ToolTip="只读扫描本机 Trae 客户端数据目录，提取登录态导入——不修改客户端任何文件">
+                        <StackPanel>
+                            <TextBlock Text="从客户端导入" Style="{StaticResource BtnMain}"/>
+                            <TextBlock Text="免登录读取登录态" Style="{StaticResource BtnSub}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            Command="{Binding RefreshStatusCommand}"
+                            IsEnabled="{Binding Busy, Converter={x:Static views:InvertBoolConverter.Instance}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{x:Static icons:Icons.Refresh}" Style="{StaticResource Ico}"
+                                  Width="13" Height="13"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Margin="0,0,7,0"/>
+                            <TextBlock Text="刷新状态" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource AccentButton}" Command="{Binding AddAccountCommand}"
+                            IsEnabled="{Binding Busy, Converter={x:Static views:InvertBoolConverter.Instance}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{x:Static icons:Icons.Plus}" Style="{StaticResource Ico}"
+                                  Width="14" Height="14"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Margin="0,0,7,0"/>
+                            <StackPanel>
+                                <TextBlock Text="添加账号" Style="{StaticResource BtnMain}"/>
+                                <TextBlock Text="弹出浏览器登录新账号" Style="{StaticResource BtnSub}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="账号管理" Style="{StaticResource PageTitle}"/>
+                    <TextBlock Text="{Binding MetaText}" Style="{StaticResource PageMeta}"/>
+                </StackPanel>
+            </DockPanel>
+
+            <!-- P3-2 状态横幅 -->
+            <Border Style="{StaticResource BannerInfo}"
+                    Visibility="{Binding StatusMessage, Converter={x:Static views:NonEmptyConverter.Instance}}">
+                <DockPanel>
+                    <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Info}" Style="{StaticResource Ico}"
+                          Width="14" Height="14" Stroke="{DynamicResource PrimaryBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="11.5"
+                               Foreground="{DynamicResource PrimaryStrongBrush}" TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <!-- P3-3 账号列表卡 -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,6">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <!-- 分组筛选（全部 / 未分组 / 各组名） -->
+                            <ComboBox Style="{StaticResource Combo}" Width="118" MinHeight="26"
+                                      FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center"
+                                      ItemsSource="{Binding GroupChoices}" DisplayMemberPath="Name"
+                                      SelectedValuePath="Id" SelectedValue="{Binding GroupFilter}"
+                                      ToolTip="按分组筛选账号列表"/>
+                            <TextBlock Text="勾选「参与签到」决定批量签到集合"
+                                       Style="{StaticResource CardMeta}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="账号列表" Style="{StaticResource CardTitle}" Margin="0"/>
+                    </DockPanel>
+
+                    <ItemsControl ItemsSource="{Binding Rows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:AccountRowViewModel}">
+                                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                                        Padding="2,11">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- 头像 + 主信息（Grid 36|*：横向 StackPanel 会给子元素
+                                             无限宽度，详情会画出列外钻到按钮底下——同切换页修法） -->
+                                        <Grid Grid.Column="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="36"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="18" VerticalAlignment="Center">
+                                                <Grid>
+                                                    <Ellipse Fill="{Binding AvatarHue, Converter={x:Static views:HueToBrushConverter.Instance}}"
+                                                             Visibility="{Binding AvatarImage, Converter={x:Static views:NullToVisConverter.Instance}}"/>
+                                                    <Ellipse Fill="{Binding AvatarImage, Converter={x:Static views:ImageToBrushConverter.Instance}}"
+                                                             Visibility="{Binding AvatarImage, Converter={x:Static views:NotNullToVisConverter.Instance}}"/>
+                                                    <TextBlock Text="{Binding Initial}" FontSize="14" FontWeight="SemiBold" Foreground="White"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               Visibility="{Binding AvatarImage, Converter={x:Static views:NullToVisConverter.Instance}}"/>
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="12,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <!-- 名字超长 150px 内省略，完整名看 ToolTip -->
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                                               FontSize="13" MaxWidth="150"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding DisplayName}"
+                                                               Foreground="{DynamicResource TextBrush}"/>
+                                                    <Border Style="{StaticResource Badge}"
+                                                            Background="{DynamicResource PrimarySoftBrush}"
+                                                            BorderBrush="{DynamicResource PrimaryLineBrush}"
+                                                            Visibility="{Binding IsCurrent, Converter={x:Static views:BoolToVisConverter.TrueInstance}}">
+                                                        <TextBlock Text="当前" Style="{StaticResource BadgeCurrent}"/>
+                                                    </Border>
+                                                    <Border Style="{StaticResource Badge}"
+                                                            Background="{DynamicResource WarnSoftBrush}"
+                                                            BorderBrush="{DynamicResource WarnLineBrush}"
+                                                            Visibility="{Binding IsLoggedIn, Converter={x:Static views:BoolToVisConverter.FalseInstance}}">
+                                                        <TextBlock Text="未登录" FontSize="10"
+                                                                   Foreground="{DynamicResource WarnBrush}"/>
+                                                    </Border>
+                                                    <Border Style="{StaticResource Badge}"
+                                                            Background="{DynamicResource SuccessSoftBrush}"
+                                                            BorderBrush="{DynamicResource SuccessLineBrush}"
+                                                            Visibility="{Binding StudentVerified, Converter={x:Static views:BoolToVisConverter.TrueInstance}}">
+                                                        <TextBlock Text="学生认证" FontSize="10"
+                                                                   Foreground="{DynamicResource SuccessBrush}"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <!-- 状态行：状态 Auto、详情 * 吃余量并省略号收尾 -->
+                                                <Grid Margin="0,3,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                        <Ellipse Width="6" Height="6" Margin="0,0,6,0"
+                                                                 VerticalAlignment="Center">
+                                                            <Ellipse.Style>
+                                                                <Style TargetType="Ellipse">
+                                                                    <Setter Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding StatusLevel}" Value="ok">
+                                                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusLevel}" Value="warn">
+                                                                            <Setter Property="Fill" Value="{DynamicResource WarnBrush}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Ellipse.Style>
+                                                        </Ellipse>
+                                                        <TextBlock Text="{Binding StatusText}" FontSize="11.5"
+                                                                   VerticalAlignment="Center">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding StatusLevel}" Value="ok">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusLevel}" Value="warn">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding DetailText}"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource MuteBrush}"
+                                                               Margin="10,0,0,0" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- 操作组（10.3 小字：登录/删除双行） -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                    VerticalAlignment="Center">
+                                            <!-- 分组：与「参与签到」同行同基线；空时显示「分组」占位提示 -->
+                                            <Grid Width="86" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                <TextBox Style="{StaticResource Input}" Width="86"
+                                                         MinHeight="26" FontSize="11"
+                                                         Text="{Binding Group, UpdateSourceTrigger=LostFocus}"
+                                                         ToolTip="账号分组：输入组名（如 主号 / 小号），留空 = 未分组；卡头下拉可按组筛选"/>
+                                                <TextBlock Text="分组" FontSize="11" Margin="11,0,0,0"
+                                                           VerticalAlignment="Center" IsHitTestVisible="False"
+                                                           Foreground="{DynamicResource MuteBrush}"
+                                                           Visibility="{Binding Group, Converter={x:Static views:NullOrEmptyToVisConverter.Instance}}"/>
+                                            </Grid>
+                                            <CheckBox Style="{StaticResource Check}" FontSize="11.5"
+                                                      IsChecked="{Binding Enabled}"
+                                                      Foreground="{DynamicResource SubBrush}"
+                                                      Margin="0,0,12,0" VerticalAlignment="Center"
+                                                      Content="参与签到"
+                                                      ToolTip="勾选后进入批量签到集合"/>
+                                            <Button Style="{StaticResource GhostButton}" Margin="0,0,7,0"
+                                                    Padding="10,5"
+                                                    IsEnabled="{Binding DataContext.Busy, Converter={x:Static views:InvertBoolConverter.Instance},
+                                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    Command="{Binding DataContext.LoginCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <StackPanel>
+                                                    <TextBlock>
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource BtnMain}">
+                                                                <Setter Property="Text" Value="重新登录"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsLoggedIn}" Value="False">
+                                                                        <Setter Property="Text" Value="登录"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock>
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource BtnSub}">
+                                                                <Setter Property="Text" Value="打开浏览器重新登录"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsLoggedIn}" Value="False">
+                                                                        <Setter Property="Text" Value="打开浏览器登录"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Style="{StaticResource GhostDangerButton}"
+                                                    Padding="10,5"
+                                                    IsEnabled="{Binding DataContext.Busy, Converter={x:Static views:InvertBoolConverter.Instance},
+                                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    Command="{Binding DataContext.DeleteCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <StackPanel>
+                                                    <TextBlock Text="删除" Style="{StaticResource BtnMain}"/>
+                                                    <TextBlock Text="移除账号及本机凭据" Style="{StaticResource BtnSub}"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- 空态 A：一个账号都没有（添加引导） -->
+                    <StackPanel Margin="0,14,0,6"
+                                Visibility="{Binding ShowNoAccounts, Converter={x:Static views:BoolToVisConverter.TrueInstance}}">
+                        <Border Style="{StaticResource EmptyIllus}">
+                            <Path Data="{x:Static icons:Icons.Users}" Style="{StaticResource Ico}"
+                                  Width="24" Height="24" Stroke="{DynamicResource MuteBrush}"/>
+                        </Border>
+                        <TextBlock Text="还没有任何账号" Style="{StaticResource EmptyTitle}"/>
+                        <TextBlock Style="{StaticResource EmptyText}"
+                                   Text="添加账号会弹出浏览器完成登录，凭据使用 DPAPI 加密保存在本机。"/>
+                        <Button Style="{StaticResource AccentButton}" Margin="0,12,0,0"
+                                HorizontalAlignment="Center" Command="{Binding AddAccountCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{x:Static icons:Icons.Plus}" Style="{StaticResource Ico}"
+                                      Width="13" Height="13"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      Margin="0,0,7,0"/>
+                                <TextBlock Text="添加第一个账号" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 空态 B：分组筛选后没有匹配的账号 -->
+                    <StackPanel Margin="0,14,0,6"
+                                Visibility="{Binding ShowFilteredEmpty, Converter={x:Static views:BoolToVisConverter.TrueInstance}}">
+                        <Border Style="{StaticResource EmptyIllus}">
+                            <Path Data="{x:Static icons:Icons.Users}" Style="{StaticResource Ico}"
+                                  Width="24" Height="24" Stroke="{DynamicResource MuteBrush}"/>
+                        </Border>
+                        <TextBlock Text="当前分组下没有账号" Style="{StaticResource EmptyTitle}"/>
+                        <TextBlock Style="{StaticResource EmptyText}"
+                                   Text="把卡头筛选切回「全部账号」，或在行内「分组」输入框给账号设置这个组名。"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- P3-4 底部引导 -->
+            <DockPanel>
+                <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Info}" Style="{StaticResource Ico}"
+                      Width="13" Height="13" Stroke="{DynamicResource MuteBrush}" Margin="2,1,8,0"/>
+                <TextBlock FontSize="10.5" Foreground="{DynamicResource MuteBrush}" TextWrapping="Wrap"
+                           Text="添加账号会弹出浏览器完成登录；多账号请保持勾选「参与签到」，未勾选的账号不会进入批量签到。每行右侧的「分组」输入框可给账号打组（如 主号 / 小号），卡头下拉按组筛选。"/>
+            </DockPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

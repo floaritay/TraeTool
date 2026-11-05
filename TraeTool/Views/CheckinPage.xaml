@@ -1,0 +1,335 @@
+<UserControl x:Class="TraeTool.Views.CheckinPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:TraeTool.ViewModels"
+             xmlns:views="clr-namespace:TraeTool.Views"
+             xmlns:icons="clr-namespace:TraeTool.Resources"
+             Background="{DynamicResource BgBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+        <StackPanel>
+
+            <!-- 页头 -->
+            <DockPanel Margin="0,0,0,14">
+                <Border DockPanel.Dock="Right" Style="{StaticResource Chip}"
+                        Background="{DynamicResource PrimarySoftBrush}"
+                        BorderBrush="{DynamicResource PrimaryLineBrush}">
+                    <TextBlock Text="{Binding EnabledCountText}" FontSize="10.5"
+                               Foreground="{DynamicResource PrimaryStrongBrush}"/>
+                </Border>
+                <StackPanel>
+                    <TextBlock Text="每日签到" Style="{StaticResource PageTitle}"/>
+                    <TextBlock Text="执行、自动签到与记录 · 防重复签到是核心业务语义"
+                               Style="{StaticResource PageMeta}"/>
+                </StackPanel>
+            </DockPanel>
+
+            <!-- P2-1 当前账号卡 -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 当前查看账号（列宽自适应，避免固定列宽切掉下拉框右缘） -->
+                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                            <TextBlock Text="当前查看账号" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Style="{StaticResource Combo}" MinWidth="170" MaxWidth="250"
+                                      ItemsSource="{Binding AccountChoices}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Id"
+                                      SelectedValue="{Binding CurrentAccountId}"/>
+                        </StackPanel>
+
+                        <!-- 剩余积分 -->
+                        <StackPanel Grid.Column="1" Margin="0,0,18,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ActiveAccountCredits}"
+                                       FontFamily="{StaticResource FontDisplay}" FontSize="27"
+                                       FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"
+                                       VerticalAlignment="Bottom"/>
+                            <TextBlock Text="剩余积分" FontSize="9.5"
+                                       Foreground="{DynamicResource MuteBrush}" Margin="0,1,0,0"/>
+                        </StackPanel>
+
+                        <!-- 状态（DockPanel：文字拿有限宽度，TextTrimming 才会生效——
+                             横排 StackPanel 给无限宽，窄窗下 UID 会画到按钮底下） -->
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,14,0">
+                            <DockPanel>
+                                <Ellipse Width="7" Height="7" Margin="0,0,7,0" VerticalAlignment="Center"
+                                         DockPanel.Dock="Left">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{DynamicResource WarnBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSignedToday}" Value="True">
+                                                    <Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="{Binding ActiveAccountLabel}" FontSize="12.5"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                            <TextBlock Margin="14,3,0,0" FontSize="10.5"
+                                       Foreground="{DynamicResource MuteBrush}">
+                                <Run Text="今日 "/><Run Text="{Binding ActiveRewardText, Mode=OneWay}"/>
+                                <Run Text=" · 连签 "/><Run Text="{Binding ActiveStreakText, Mode=OneWay}"/>
+                                <Run Text=" 天"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!-- 一键签到 -->
+                        <Button Grid.Column="3" Style="{StaticResource AccentButton}"
+                                Padding="18,9" FontSize="13"
+                                Command="{Binding CheckinCommand}" IsEnabled="{Binding CanCheckin}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{x:Static icons:Icons.CheckCheck}" Style="{StaticResource Ico}"
+                                      Width="15" Height="15"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      Margin="0,0,9,0"/>
+                                <StackPanel>
+                                    <TextBlock Text="一键签到" Style="{StaticResource BtnMain}" FontSize="13"/>
+                                    <TextBlock Text="全部启用账号" Style="{StaticResource BtnSub}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- 说明 -->
+                    <Border Background="{DynamicResource Surface2Brush}" CornerRadius="8" Padding="9,7"
+                            Margin="0,12,0,0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                        <DockPanel>
+                            <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Info}" Style="{StaticResource Ico}"
+                                  Width="13" Height="13" Stroke="{DynamicResource PrimaryBrush}"
+                                  Margin="0,1,8,0"/>
+                            <TextBlock FontSize="11" Foreground="{DynamicResource SubBrush}"
+                                       TextWrapping="Wrap"
+                                       Text="切换账号只改变此处展示；一键 / 自动签到始终跑所有勾选「参与签到」的账号。"/>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- P2-2 状态卡 + P2-3 自动签到设置（双栏） -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,7,12">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                            <Border DockPanel.Dock="Right">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource Chip}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Busy}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource PrimarySoftBrush}"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryLineBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock FontSize="10.5">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="待命"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource SubBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Busy}" Value="True">
+                                                    <Setter Property="Text" Value="执行中"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                            <TextBlock Text="执行状态" Style="{StaticResource CardTitle}" Margin="0"/>
+                        </DockPanel>
+
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="12"
+                                   Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"
+                                   MinHeight="34" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource LogBox}" Height="126">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding RunLog}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" Style="{StaticResource LogText}"
+                                                       Margin="0,1"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                        <TextBlock Text="执行明细会逐行追加在这里" FontSize="10"
+                                   Foreground="{DynamicResource MuteBrush}" Margin="2,4,0,0"
+                                   Visibility="{Binding RunLog.Count, Converter={x:Static views:ZeroToVisConverter.Instance}}"/>
+
+                        <DockPanel Margin="0,9,0,0">
+                            <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Info}" Style="{StaticResource Ico}"
+                                  Width="12" Height="12" Stroke="{DynamicResource MuteBrush}" Margin="0,1,7,0"/>
+                            <TextBlock FontSize="10.5" Foreground="{DynamicResource MuteBrush}"
+                                       TextWrapping="Wrap"
+                                       Text="跳过 / 已签不算失败；9074 冷却期间请勿重复点击。"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="7,0,0,12">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock DockPanel.Dock="Right" Text="本地时间" Style="{StaticResource CardMeta}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="自动签到设置" Style="{StaticResource CardTitle}" Margin="0"/>
+                        </DockPanel>
+
+                        <CheckBox Style="{StaticResource Check}" IsChecked="{Binding AutoCheckinEnabled}"
+                                  Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="开启每日自动签到" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextBrush}"/>
+                                <TextBlock Text="程序需在运行中（可收至托盘）" FontSize="10"
+                                           Foreground="{DynamicResource MuteBrush}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </CheckBox>
+
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="签到时间" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Style="{StaticResource Input}" Width="86" HorizontalAlignment="Left"
+                                         Text="{Binding AutoCheckinTime, UpdateSourceTrigger=LostFocus}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="账号间隔" Style="{StaticResource FieldLabel}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Style="{StaticResource Input}" Width="58"
+                                             Text="{Binding CheckinIntervalSeconds, UpdateSourceTrigger=LostFocus}"/>
+                                    <TextBlock Text="秒" FontSize="11" Foreground="{DynamicResource MuteBrush}"
+                                               VerticalAlignment="Center" Margin="7,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <DockPanel Margin="0,8,0,0">
+                            <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Shield}" Style="{StaticResource Ico}"
+                                  Width="13" Height="13" Stroke="{DynamicResource MuteBrush}" Margin="0,1,7,0"/>
+                            <TextBlock FontSize="10.5" Foreground="{DynamicResource MuteBrush}"
+                                       TextWrapping="Wrap"
+                                       Text="执行时会自动附加 ±2 秒随机抖动，规避风控。"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- P2-4 签到记录卡 -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <TextBlock Text="{Binding Records.Count, StringFormat=共 {0} 条}"
+                                       Style="{StaticResource CardMeta}" VerticalAlignment="Center"
+                                       Margin="0,0,10,0"/>
+                            <ComboBox Style="{StaticResource Combo}" Width="146" MinHeight="26"
+                                      FontSize="11"
+                                      ItemsSource="{Binding RecordFilters}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Id"
+                                      SelectedValue="{Binding SelectedFilterId, TargetNullValue={x:Static sys:String.Empty}}"
+                                      xmlns:sys="clr-namespace:System;assembly=mscorlib"/>
+                        </StackPanel>
+                        <TextBlock Text="签到记录" Style="{StaticResource CardTitle}" Margin="0"/>
+                    </DockPanel>
+
+                    <!-- 表头 -->
+                    <Border Background="{DynamicResource Surface2Brush}" CornerRadius="7" Padding="12,7"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            Margin="0,0,0,2">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="86"/>
+                                <ColumnDefinition Width="118"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="时间" Style="{StaticResource Th}"/>
+                            <TextBlock Grid.Column="1" Text="账号" Style="{StaticResource Th}"/>
+                            <TextBlock Grid.Column="2" Text="获得积分" Style="{StaticResource Th}"
+                                       HorizontalAlignment="Right"/>
+                            <TextBlock Grid.Column="3" Text="说明" Style="{StaticResource Th}" Margin="14,0,0,0"/>
+                        </Grid>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding Records}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12,7" BorderThickness="0,0,0,1"
+                                        BorderBrush="{DynamicResource BorderBrush}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="86"/>
+                                            <ColumnDefinition Width="118"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding CheckedAt}" FontSize="11"
+                                                   Foreground="{DynamicResource MuteBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding AccountName}" FontSize="11.5"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" FontSize="11.5" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Text="{Binding Credits, StringFormat=+{0:0}}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Credits}" Value="0">
+                                                            <Setter Property="Foreground" Value="{DynamicResource MuteBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Grid.Column="3" Text="{Binding Note}" FontSize="11"
+                                                   Foreground="{DynamicResource SubBrush}" Margin="14,0,0,0"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="暂无记录" FontSize="11" Foreground="{DynamicResource MuteBrush}"
+                               Margin="2,8,0,0"
+                               Visibility="{Binding Records.Count, Converter={x:Static views:ZeroToVisConverter.Instance}}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
