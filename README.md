@@ -60,12 +60,8 @@ dotnet build TraeTool.sln -c Release
 ```
 TraeTool.sln
 TraeTool/                 # 主工程（Views / ViewModels / Services / Themes / Resources）
-tools/                    # 开发辅助脚本（图标生成、窗口截图、结构勘察等）
-docs/UI设计需求.txt        # 信息架构与模块设计说明
-docs/prototype/           # 布局与交互基线原型（双击 index.html 离线演示）
+tools/                    # 开发辅助脚本（图标生成、窗口截图、发版打包等）
 ```
-
-界面设计基于本仓库 `docs/` 内的设计说明与原型完成。
 
 ## 许可证
 
