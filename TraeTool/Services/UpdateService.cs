@@ -28,7 +28,7 @@ public static class UpdateService
     /// 内置默认更新源（留空 UpdateFeedUrl 时使用）。
     /// 指向本仓库 GitHub Releases；发布新版本时打 tag + 上传 zip 资产即可被客户端检测到。
     /// </summary>
-    public const string DefaultFeedUrl = "https://api.github.com/repos/floaritay/traetool/releases/latest";
+    public const string DefaultFeedUrl = "https://api.github.com/repos/floaritay/TraeTool/releases/latest";
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
