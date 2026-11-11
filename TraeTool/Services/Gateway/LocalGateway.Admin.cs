@@ -1,0 +1,160 @@
+using System.Net;
+using TraeTool.Models;
+using TraeTool.ViewModels;
+
+namespace TraeTool.Services.Gateway;
+
+/// <summary>
+/// 管理端点：/status（账号与签到状态汇总）与 /checkin（异步受理批量签到），
+/// 以及它们使用的两套鉴权（管理 token / 客户端惯例头）。
+/// </summary>
+public sealed partial class LocalGateway
+{
+    /// <summary>最近一次网关触发签到的结果（/status 汇总用，跨请求保留）。</summary>
+    private string? _lastRunAt;
+    private string? _lastRunSummary;
+
+    private bool Authorized(HttpListenerRequest req, HttpListenerContext ctx)
+    {
+        var got = req.Headers["X-TraeTool-Token"] ?? req.QueryString["token"] ?? "";
+        if (Token.Length > 0 && string.Equals(got, Token, StringComparison.Ordinal)) return true;
+        Write(ctx, 401, new { error = "missing or invalid token", hint = "X-TraeTool-Token header or ?token=" });
+        return false;
+    }
+
+    private static int ReadLimit(HttpListenerRequest req)
+    {
+        var raw = req.QueryString["limit"];
+        if (int.TryParse(raw, out var n)) return Math.Clamp(n, 1, 200);
+        return 20;
+    }
+
+    /// <summary>触发批量签到：已在跑回 409；否则异步受理返回 202，结果写入 /status 的 lastRun。</summary>
+    private void HandleCheckin(HttpListenerContext ctx)
+    {
+        var cfg = _config();
+        var enabled = cfg.Accounts.Count(a => a.Enabled);
+        if (enabled == 0)
+        {
+            Write(ctx, 400, new { error = "no enabled account" });
+            return;
+        }
+        if (AppServices.BatchBusy)
+        {
+            Write(ctx, 409, new { error = "busy", detail = "已有签到批次在执行" });
+            return;
+        }
+        if (!AppServices.TryEnterBatch())
+        {
+            Write(ctx, 409, new { error = "busy" });
+            return;
+        }
+
+        Write(ctx, 202, new { accepted = true, enabled });
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var list = cfg.Accounts.Where(a => a.Enabled).ToList();
+                var results = await AppServices.Checkin.BatchCheckinAsync(
+                    list, cfg.CheckinIntervalSeconds);
+                var total = results.Sum(r => r.Gained);
+                var summary = CheckinPageViewModel.BuildBatchSummary(results, total);
+                RecordRun(summary);
+                AppLog.Info("gateway", "网关触发签到完成：" + summary);
+                AppServices.RaiseAccountsChanged();
+            }
+            catch (Exception ex)
+            {
+                AppLog.Error("gateway", "网关触发签到异常: " + ex.Message);
+                RecordRun("异常：" + ex.Message);
+            }
+            finally
+            {
+                AppServices.BatchBusy = false;
+            }
+        });
+    }
+
+    private void RecordRun(string summary)
+    {
+        _lastRunAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        _lastRunSummary = summary;
+    }
+
+    /// <summary>
+    /// /v1/* 客户端鉴权，按客户端惯例依次接受：
+    /// Authorization: Bearer（OpenAI 系）、x-api-key（Anthropic 系）、X-TraeTool-Token、?token=。
+    /// </summary>
+    private bool OpenAiAuthorized(HttpListenerRequest req, HttpListenerContext ctx)
+    {
+        var bearer = req.Headers["Authorization"] ?? "";
+        var token = bearer.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? bearer["Bearer ".Length..].Trim()
+            : "";
+        if (token.Length == 0) token = (req.Headers["x-api-key"] ?? "").Trim();
+        if (token.Length == 0)
+            token = req.Headers["X-TraeTool-Token"] ?? req.QueryString["token"] ?? "";
+        if (Token.Length > 0 && string.Equals(token, Token, StringComparison.Ordinal)) return true;
+        WriteRaw(ctx, 401, ChatProtocol.RenderError(new("missing or invalid api key", "invalid_request_error", 401)));
+        return false;
+    }
+
+    /// <summary>转发未开启（设置项默认关闭）。</summary>
+    private static void Disabled(HttpListenerContext ctx)
+        => WriteRaw(ctx, 403, ChatProtocol.RenderError(new("该网关的对话转发未开启", "permission_denied", 403)));
+
+    /// <summary>/status 的响应体：账号、汇总、最近一次网关签到与近期签到记录。</summary>
+    private object BuildStatus(int limit)
+    {
+        var cfg = _config();
+        var accounts = new List<object>();
+        for (int i = 0; i < cfg.Accounts.Count; i++)
+        {
+            var a = cfg.Accounts[i];
+            var checkedToday = a.LastCheckinDate == DateOnly.FromDateTime(DateTime.Today);
+            accounts.Add(new
+            {
+                id = a.Id,
+                name = a.DisplayName(i + 1),
+                uid = a.AccountUid,
+                group = a.Group,
+                enabled = a.Enabled,
+                loggedIn = !string.IsNullOrEmpty(a.Token) || !string.IsNullOrEmpty(a.Session),
+                health = AccountHealth.Evaluate(a, DateTime.Today),
+                checkedToday,
+                credits = a.RemainingCredits,
+                member = a.IsMember,
+                failStreak = a.FailStreak,
+                suspendedUntil = a.SuspendedUntil?.ToString("yyyy-MM-dd"),
+            });
+        }
+
+        var active = cfg.Accounts.FirstOrDefault(x => x.Id == cfg.ActiveAccountId) ?? cfg.Accounts.FirstOrDefault();
+        var activeIdx = active == null ? 0 : cfg.Accounts.IndexOf(active) + 1;
+
+        return new
+        {
+            app = "TraeTool",
+            version = UpdateService.CurrentVersionText,
+            now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            busy = new { batch = AppServices.BatchBusy, switchBusy = AppServices.SwitchBusy },
+            activeAccount = active == null ? null : new
+            {
+                id = active.Id,
+                name = active.DisplayName(activeIdx),
+                checkedToday = active.LastCheckinDate == DateOnly.FromDateTime(DateTime.Today),
+            },
+            summary = new
+            {
+                accounts = cfg.Accounts.Count,
+                enabled = cfg.Accounts.Count(a => a.Enabled),
+                checkedToday = cfg.Accounts.Count(x =>
+                    x.LastCheckinDate == DateOnly.FromDateTime(DateTime.Today)),
+            },
+            lastRun = new { at = _lastRunAt, summary = _lastRunSummary },
+            accounts,
+            records = CheckinRecordRepo.Recent(limit),
+        };
+    }
+}
