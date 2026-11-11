@@ -76,6 +76,11 @@ public partial class SettingsPageViewModel
         else if (AppServices.Config.GatewayEnabled)
         {
             GatewayStatus = "启动失败：" + (gw.LastError ?? "未知错误");
+            var t = cfg.GatewayToken ?? "";
+            GatewayTokenMasked = t.Length == 0 ? "尚未生成"
+                : t.Length <= 8 ? t : t[..4] + "…" + t[^4..];
+            // 状态行 + 横幅都写失败原因：只写在未绑定的属性上用户看不到启动失败
+            StatusMessage = "网关启动失败：" + (gw.LastError ?? "未知错误");
         }
         else
         {

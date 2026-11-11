@@ -39,7 +39,7 @@
                                Text="在本机开一个只读 HTTP 接口，供脚本/面板读取账号健康与今日签到状态、或远程触发批量签到。不代理任何第三方流量。"/>
 
                     <CheckBox Style="{StaticResource Check}" IsChecked="{Binding GatewayEnabled}"
-                              Margin="0,0,0,12">
+                              Margin="0,0,0,4">
                         <StackPanel>
                             <TextBlock Text="启用本机管理网关" FontSize="12.5" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextBrush}"/>
@@ -48,6 +48,10 @@
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
                     </CheckBox>
+
+                    <TextBlock Text="{Binding GatewayStatus}" FontSize="10.5"
+                               Foreground="{DynamicResource SubBrush}" TextWrapping="Wrap"
+                               Margin="2,0,0,12"/>
 
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
@@ -127,7 +131,6 @@
                     <TextBlock FontFamily="{StaticResource FontMono}" FontSize="10.5"
                                Foreground="{DynamicResource SubBrush}" TextWrapping="Wrap" Margin="2,2,0,0"
                                Text="curl http://127.0.0.1:8766/v1/responses -H &quot;Authorization: Bearer &lt;令牌&gt;&quot; -d '{&quot;model&quot;:&quot;trae&quot;,&quot;input&quot;:&quot;hi&quot;}'"/>
-                               Foreground="{DynamicResource SubBrush}"/>
                 </StackPanel>
             </Border>
 
