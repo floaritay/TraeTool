@@ -57,7 +57,7 @@
                     <TextBox Style="{StaticResource Input}"
                              Text="{Binding ProxyUrl, UpdateSourceTrigger=LostFocus}"
                              IsEnabled="{Binding ProxyIsManual}"
-                             ToolTip="如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080；漏写协议按 http:// 处理"/>
+                             ToolTip="如 http://127.0.0.1:7890（仅支持 http:// 协议）；漏写协议按 http:// 处理"/>
                     <TextBlock FontSize="10.5" Foreground="{DynamicResource MuteBrush}" TextWrapping="Wrap"
                                Margin="2,5,0,0"
                                Text="仅在「手动指定」时生效；127.0.0.1 的本机地址不走代理。系统未设代理时「跟随系统」等同直连。"/>

@@ -12,9 +12,12 @@ namespace TraeTool.Services;
 /// </summary>
 public sealed record ProxyConfig(string Mode, string? Url)
 {
-    /// <summary>是否已配置可用的手动代理地址。</summary>
+    /// <summary>
+    /// 是否已配置可用的手动代理地址。只认 http://——.NET 的 SocketsHttpHandler/WebProxy
+    /// 只讲 HTTP 代理协议，socks5 会在 .NET 通道上静默失败（仅浏览器侧可用），故不受理。
+    /// </summary>
     public bool IsManual => Mode == AppSettings.ProxyModes.Manual && Uri.TryCreate(Url, UriKind.Absolute, out var u) &&
-                            (u.Scheme is "http" or "socks5");
+                            u.Scheme is "http";
 
     /// <summary>手动代理地址（仅 <see cref="IsManual"/> 时非空）。</summary>
     public Uri? ManualUri => IsManual ? new Uri(Url!) : null;

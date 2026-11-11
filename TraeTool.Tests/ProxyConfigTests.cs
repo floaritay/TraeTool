@@ -28,7 +28,6 @@ public class ProxyConfigTests
 
     [Theory]
     [InlineData("http://127.0.0.1:7890", "http://127.0.0.1:7890/")]
-    [InlineData("socks5://127.0.0.1:1080", "socks5://127.0.0.1:1080/")]
     [InlineData("127.0.0.1:7890", "http://127.0.0.1:7890/")]   // 漏写协议 → 补 http://
     [InlineData("  127.0.0.1:7890  ", "http://127.0.0.1:7890/")] // 首尾空白去掉
     public void Manual_address_is_parsed(string input, string expected)
@@ -38,6 +37,21 @@ public class ProxyConfigTests
         Assert.Equal(AppSettings.ProxyModes.Manual, cfg.Mode);
         Assert.True(cfg.IsManual);
         Assert.Equal(expected, cfg.ManualUri!.ToString());
+    }
+
+    [Fact]
+    public void Socks5_address_is_not_accepted()
+    {
+        // .NET 出站通道不支持 SOCKS：受理后浏览器侧生效而 .NET 侧失败，两套通道行为分裂
+        var cfg = ProxyConfig.From(new AppSettings
+        {
+            ProxyMode = AppSettings.ProxyModes.Manual,
+            ProxyUrl = "socks5://127.0.0.1:1080",
+        });
+
+        Assert.Equal(AppSettings.ProxyModes.System, cfg.Mode);
+        Assert.False(cfg.IsManual);
+        Assert.Null(cfg.ManualUri);
     }
 
     [Theory]

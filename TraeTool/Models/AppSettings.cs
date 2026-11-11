@@ -62,7 +62,7 @@ public class AppSettings
     /// <summary>出站代理模式：仅约束本工具自己的网络请求与 WebView2 登录页，见 <see cref="ProxyModes"/>。</summary>
     public string ProxyMode { get; set; } = ProxyModes.System;
 
-    /// <summary>手动代理地址（ProxyMode=manual 时生效），如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080。</summary>
+    /// <summary>手动代理地址（ProxyMode=manual 时生效，仅支持 http://），如 http://127.0.0.1:7890。</summary>
     public string? ProxyUrl { get; set; }
 
     /// <summary>本机管理网关开关（只监听 127.0.0.1，提供状态查询与远程签到触发）。</summary>
