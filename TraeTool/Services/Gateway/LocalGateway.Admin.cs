@@ -33,7 +33,9 @@ public sealed partial class LocalGateway
     private void HandleCheckin(HttpListenerContext ctx)
     {
         var cfg = _config();
-        var enabled = cfg.Accounts.Count(a => a.Enabled);
+        List<Account> accounts;
+        lock (ConfigStore.SyncRoot) accounts = cfg.Accounts.ToList();
+        var enabled = accounts.Count(a => a.Enabled);
         if (enabled == 0)
         {
             Write(ctx, 400, new { error = "no enabled account" });
@@ -55,14 +57,16 @@ public sealed partial class LocalGateway
         {
             try
             {
-                var list = cfg.Accounts.Where(a => a.Enabled).ToList();
+                var list = accounts.Where(a => a.Enabled).ToList();
                 var results = await AppServices.Checkin.BatchCheckinAsync(
                     list, cfg.CheckinIntervalSeconds);
                 var total = results.Sum(r => r.Gained);
                 var summary = CheckinPageViewModel.BuildBatchSummary(results, total);
                 RecordRun(summary);
                 AppLog.Info("gateway", "网关触发签到完成：" + summary);
-                AppServices.RaiseAccountsChanged();
+                // 通知失败只记日志：不能反过来把已记录的成功摘要覆盖成「异常」
+                try { AppServices.RaiseAccountsChanged(); }
+                catch (Exception ex) { AppLog.Error("gateway", "账号变更通知失败: " + ex.Message); }
             }
             catch (Exception ex)
             {
@@ -108,10 +112,13 @@ public sealed partial class LocalGateway
     private object BuildStatus(int limit)
     {
         var cfg = _config();
+        List<Account> source;
+        lock (ConfigStore.SyncRoot) source = cfg.Accounts.ToList();
+
         var accounts = new List<object>();
-        for (int i = 0; i < cfg.Accounts.Count; i++)
+        for (int i = 0; i < source.Count; i++)
         {
-            var a = cfg.Accounts[i];
+            var a = source[i];
             var checkedToday = a.LastCheckinDate == DateOnly.FromDateTime(DateTime.Today);
             accounts.Add(new
             {
@@ -130,8 +137,8 @@ public sealed partial class LocalGateway
             });
         }
 
-        var active = cfg.Accounts.FirstOrDefault(x => x.Id == cfg.ActiveAccountId) ?? cfg.Accounts.FirstOrDefault();
-        var activeIdx = active == null ? 0 : cfg.Accounts.IndexOf(active) + 1;
+        var active = source.FirstOrDefault(x => x.Id == cfg.ActiveAccountId) ?? source.FirstOrDefault();
+        var activeIdx = active == null ? 0 : source.IndexOf(active) + 1;
 
         return new
         {
@@ -147,9 +154,9 @@ public sealed partial class LocalGateway
             },
             summary = new
             {
-                accounts = cfg.Accounts.Count,
-                enabled = cfg.Accounts.Count(a => a.Enabled),
-                checkedToday = cfg.Accounts.Count(x =>
+                accounts = source.Count,
+                enabled = source.Count(a => a.Enabled),
+                checkedToday = source.Count(x =>
                     x.LastCheckinDate == DateOnly.FromDateTime(DateTime.Today)),
             },
             lastRun = new { at = _lastRunAt, summary = _lastRunSummary },

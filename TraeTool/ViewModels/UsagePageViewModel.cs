@@ -74,13 +74,22 @@ public partial class UsagePageViewModel : ObservableObject
 
     private void SyncAccounts()
     {
-        var cfg = AppServices.Config;
-        var activeId = cfg.ActiveAccountId;
-        Accounts.Clear();
-        for (int i = 0; i < cfg.Accounts.Count; i++)
-            Accounts.Add(new UsageAccount(cfg.Accounts[i].Id, cfg.Accounts[i].DisplayName(i + 1)));
-        if (SelectedAccountId == null || cfg.Accounts.All(a => a.Id != SelectedAccountId))
-            SelectedAccountId = activeId ?? cfg.Accounts.FirstOrDefault()?.Id;
+        // 网关批量签到在后台线程触发 AccountsChanged：ObservableCollection 跨线程改动会抛异常
+        void Apply()
+        {
+            var cfg = AppServices.Config;
+            var activeId = cfg.ActiveAccountId;
+            Accounts.Clear();
+            for (int i = 0; i < cfg.Accounts.Count; i++)
+                Accounts.Add(new UsageAccount(cfg.Accounts[i].Id, cfg.Accounts[i].DisplayName(i + 1)));
+            if (SelectedAccountId == null || cfg.Accounts.All(a => a.Id != SelectedAccountId))
+                SelectedAccountId = activeId ?? cfg.Accounts.FirstOrDefault()?.Id;
+        }
+
+        if (Application.Current?.Dispatcher.CheckAccess() == false)
+            Application.Current.Dispatcher.Invoke(Apply);
+        else
+            Apply();
     }
 
     /// <summary>联网拉取当前账号近 N 天用量（凭证失效自动换新）→ 合并缓存 → 重载展示。</summary>

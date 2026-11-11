@@ -273,8 +273,9 @@ public sealed partial class LocalGateway
         }
         catch (Exception ex)
         {
-            AppLog.Error("gateway", "请求处理异常: " + ex.Message);
-            try { Write(ctx, 500, new { error = ex.Message }); }
+            // 原始异常消息可能含内部路径/实现细节，只记日志，对外给统一文案
+            AppLog.Error("gateway", "请求处理异常: " + ex);
+            try { Write(ctx, 500, new { error = "内部错误，请查看日志" }); }
             catch { /* 连接已断开 */ }
         }
     }

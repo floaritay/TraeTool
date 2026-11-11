@@ -122,7 +122,7 @@ public partial class AccountsPageViewModel : ObservableObject
                 AppServices.Config.Accounts.All(a => a.DeviceId != probe.DeviceId))
                 acc.DeviceId = probe.DeviceId;
 
-            AppServices.Config.Accounts.Add(acc);
+            lock (ConfigStore.SyncRoot) AppServices.Config.Accounts.Add(acc);
             AppServices.Config.ActiveAccountId = acc.Id;
             AppServices.SaveConfig();
             FinalizeNewAccount(acc); // 设备号兜底 + 资料回填 + UID 二次查重
@@ -223,7 +223,7 @@ public partial class AccountsPageViewModel : ObservableObject
         {
             acc = new Account();
             ReissueDeviceId(acc);
-            AppServices.Config.Accounts.Add(acc);
+            lock (ConfigStore.SyncRoot) AppServices.Config.Accounts.Add(acc);
             AppServices.Config.ActiveAccountId = acc.Id;
             AppServices.SaveConfig();
 
@@ -231,7 +231,7 @@ public partial class AccountsPageViewModel : ObservableObject
             if (!ok)
             {
                 // 两个通道都没拿到凭证：撤销刚创建的空账号
-                AppServices.Config.Accounts.RemoveAll(a => a.Id == acc.Id);
+                lock (ConfigStore.SyncRoot) AppServices.Config.Accounts.RemoveAll(a => a.Id == acc.Id);
                 if (AppServices.Config.ActiveAccountId == acc.Id)
                     AppServices.Config.ActiveAccountId = AppServices.Config.Accounts.FirstOrDefault()?.Id;
                 AppServices.SaveConfig();
@@ -272,7 +272,7 @@ public partial class AccountsPageViewModel : ObservableObject
             StatusMessage = "添加失败：" + ex.Message;
             if (acc != null)
             {
-                AppServices.Config.Accounts.RemoveAll(a => a.Id == acc.Id);
+                lock (ConfigStore.SyncRoot) AppServices.Config.Accounts.RemoveAll(a => a.Id == acc.Id);
                 AppServices.SaveConfig();
             }
         }
@@ -338,7 +338,7 @@ public partial class AccountsPageViewModel : ObservableObject
 
             var id = row.Id;
             var name = row.DisplayName;
-            AppServices.Config.Accounts.RemoveAll(a => a.Id == id);
+            lock (ConfigStore.SyncRoot) AppServices.Config.Accounts.RemoveAll(a => a.Id == id);
             if (AppServices.Config.ActiveAccountId == id)
                 AppServices.Config.ActiveAccountId = AppServices.Config.Accounts.FirstOrDefault()?.Id;
             AppServices.SaveConfig();
@@ -540,7 +540,7 @@ public partial class AccountsPageViewModel : ObservableObject
                 a => a.Id != account.Id && a.AccountUid == account.AccountUid);
             if (dup != null)
             {
-                AppServices.Config.Accounts.RemoveAll(a => a.Id == account.Id);
+                lock (ConfigStore.SyncRoot) AppServices.Config.Accounts.RemoveAll(a => a.Id == account.Id);
                 AppServices.Config.ActiveAccountId = dup.Id;
                 AppServices.SaveConfig();
                 StatusMessage = "该账号已存在（UID 相同），已切换到已有账号";

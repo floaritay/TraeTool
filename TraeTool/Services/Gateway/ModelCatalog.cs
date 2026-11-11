@@ -18,7 +18,8 @@ namespace TraeTool.Services.Gateway;
 ///   4) 名称推断 —— 本网关收到过的请求名（<see cref="AppSettings.GatewaySeenModels"/>，自动累积），
 ///      外加解析时按归一化比对（去上下文标记、去厂商前缀、忽略大小写与分隔符）推断同名模型。
 ///
-/// 官网同步 30 分钟缓存；同步失败保留上一次在线结果，再失败才回退内置参考。
+/// 官网同步 30 分钟缓存；同步失败保留上一次在线结果并退避 60 秒（期间不逐请求重试），
+/// 从未成功过则回退内置参考；并发请求共用同一次拉取。
 /// 分层合并见 ModelCatalog.Layers.cs，内置表见 ModelCatalog.Builtin.cs，官网拉取见 ModelCatalog.Sync.cs。
 /// </summary>
 public static partial class ModelCatalog
@@ -37,10 +38,16 @@ public static partial class ModelCatalog
         """{"functions":["builder"],"agent_type":"","current_config_info":{"config_name":"","is_custom_model":false},"mode_type":0,"access_type":1,"ab_force_vids":"","ab_autotest_advanced_mode":0}""";
 
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(30);
+
+    /// <summary>拉取失败后的重试退避：期间沿用上次结果，避免每个请求都打一次上游。</summary>
+    private static readonly TimeSpan FailureBackoff = TimeSpan.FromSeconds(60);
+
     private static readonly object Gate = new();
     private static IReadOnlyList<string> _official = KnownIds;
     private static IReadOnlyList<ModelEntry> _officialEntries = Array.Empty<ModelEntry>();
     private static DateTime _syncAt = DateTime.MinValue;
+    private static DateTime _nextAttemptAt = DateTime.MinValue;
+    private static Task<IReadOnlyList<ModelEntry>>? _inflight;
     private static bool _officialLive;
 
     /// <summary>当前官网层条目（带元数据；未同步过则等于内置条目）。</summary>
@@ -63,6 +70,8 @@ public static partial class ModelCatalog
             _official = KnownIds;
             _officialEntries = BuiltinEntries();
             _syncAt = DateTime.MinValue;
+            _nextAttemptAt = DateTime.MinValue;
+            _inflight = null;
             _officialLive = false;
         }
     }
@@ -88,16 +97,44 @@ public static partial class ModelCatalog
             overrides.Count(o => o.Hidden && !string.IsNullOrWhiteSpace(o.Id)), live, synced);
     }
 
-    /// <summary>官网同步（第 2 层）：带缓存的条目版（含展示名/倍率/图片/档位）。</summary>
+    /// <summary>
+    /// 官网同步（第 2 层）：带缓存的条目版（含展示名/倍率/图片/档位）。
+    /// 成功缓存 30 分钟，失败退避 60 秒；并发调用共用同一次拉取（单飞）。
+    /// </summary>
     public static async Task<IReadOnlyList<ModelEntry>> GetOfficialEntriesAsync(AppSettings cfg, Account? account,
         HttpClient? http = null, CancellationToken ct = default)
     {
+        Task<IReadOnlyList<ModelEntry>> fetch;
         lock (Gate)
         {
-            if (DateTime.UtcNow - _syncAt < Ttl && _officialEntries.Count > 0) return _officialEntries;
+            if (DateTime.UtcNow < _nextAttemptAt)
+                return _officialEntries.Count > 0 ? _officialEntries : BuiltinEntries();
+            // 进行中的拉取直接复用；已完成但没来得及清的换新发起
+            fetch = _inflight is { IsCompleted: false } running
+                ? running
+                : FetchCoreAsync(cfg, account, http);
+            _inflight = fetch;
         }
 
-        var entries = await FetchOfficialEntriesAsync(cfg, account, http, ct);
+        try
+        {
+            // 调用方的 ct 只取消自己的等待，不中断共享的拉取
+            return await fetch.WaitAsync(ct);
+        }
+        finally
+        {
+            lock (Gate)
+            {
+                if (ReferenceEquals(_inflight, fetch) && fetch.IsCompleted) _inflight = null;
+            }
+        }
+    }
+
+    private static async Task<IReadOnlyList<ModelEntry>> FetchCoreAsync(
+        AppSettings cfg, Account? account, HttpClient? http)
+    {
+        // 共享拉取不跟随单个请求的取消令牌
+        var entries = await FetchOfficialEntriesAsync(cfg, account, http, CancellationToken.None);
         lock (Gate)
         {
             if (entries is { Count: > 0 })
@@ -106,9 +143,11 @@ public static partial class ModelCatalog
                 _official = entries.Select(e => e.Id).ToList();
                 _officialLive = true;
                 _syncAt = DateTime.UtcNow;
+                _nextAttemptAt = _syncAt + Ttl;
                 return _officialEntries;
             }
-            // 拿不到新数据：保留上一次在线结果；从未成功过才回退内置
+            // 拿不到新数据：保留上一次在线结果并退避重试；从未成功过才回退内置
+            _nextAttemptAt = DateTime.UtcNow + FailureBackoff;
             return _officialLive ? _officialEntries : BuiltinEntries();
         }
     }

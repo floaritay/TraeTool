@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using TraeTool.Models;
 using TraeTool.Services;
 using TraeTool.Services.Switch;
 
@@ -72,7 +73,9 @@ public partial class MainViewModel : ObservableObject
             {
                 // 自动签到复用手动批次逻辑（CheckinPageViewModel.CheckinAsync 是私有 command，
                 // 这里直接调服务层，完成后刷新两页）
-                var enabled = AppServices.Config.Accounts.Where(a => a.Enabled).ToList();
+                List<Account> enabled;
+                lock (ConfigStore.SyncRoot)
+                    enabled = AppServices.Config.Accounts.Where(a => a.Enabled).ToList();
                 if (enabled.Count == 0) return;
                 if (!AppServices.TryEnterBatch()) return; // 与手动批次互斥（原子占用）
                 try
@@ -129,7 +132,9 @@ public partial class MainViewModel : ObservableObject
             try
             {
                 bool changed = false;
-                foreach (var acc in AppServices.Config.Accounts.ToList())
+                List<Account> snapshot;
+                lock (ConfigStore.SyncRoot) snapshot = AppServices.Config.Accounts.ToList();
+                foreach (var acc in snapshot)
                 {
                     if (string.IsNullOrEmpty(acc.Token) && string.IsNullOrEmpty(acc.Session)) continue;
                     try

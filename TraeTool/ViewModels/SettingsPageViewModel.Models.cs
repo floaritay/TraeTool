@@ -193,7 +193,8 @@ public partial class SettingsPageViewModel
         var over = FindOverride(row.IdText);
         // 只有隐藏、别的字段都没改过的覆盖项，恢复后整条删掉，让官网层接管
         if (over == null || !over.Hidden) return;
-        if (IsEmpty(over)) AppServices.Config.ModelOverrides.Remove(over);
+        if (IsEmpty(over))
+            lock (ConfigStore.SyncRoot) AppServices.Config.ModelOverrides.Remove(over);
         else over.Hidden = false;
 
         AppServices.SaveConfig();
@@ -214,7 +215,7 @@ public partial class SettingsPageViewModel
                 DialogKind.Danger, dangerPrimary: true))
             return;
 
-        AppServices.Config.ModelOverrides.Remove(over);
+        lock (ConfigStore.SyncRoot) AppServices.Config.ModelOverrides.Remove(over);
         AppServices.SaveConfig();
         RefreshModelListStatus();
         StatusMessage = $"已删除「{row.DisplayText}」的本地设置";
@@ -226,12 +227,16 @@ public partial class SettingsPageViewModel
 
     private ModelOverride EnsureOverride(string id)
     {
-        var list = AppServices.Config.ModelOverrides;
-        var over = FindOverride(id);
-        if (over != null) return over;
-        over = new ModelOverride { Id = id };
-        list.Add(over);
-        return over;
+        // 结构变更（Add）与网关线程的枚举互斥
+        lock (ConfigStore.SyncRoot)
+        {
+            var list = AppServices.Config.ModelOverrides;
+            var over = FindOverride(id);
+            if (over != null) return over;
+            over = new ModelOverride { Id = id };
+            list.Add(over);
+            return over;
+        }
     }
 
     /// <summary>没有填任何字段、也没隐藏的覆盖项（恢复时直接丢弃，不留空壳）。</summary>
@@ -251,8 +256,10 @@ public partial class SettingsPageViewModel
         {
             try
             {
-                var account = AppServices.Config.Accounts
-                    .FirstOrDefault(a => a.Enabled && !string.IsNullOrEmpty(a.Token));
+                Account? account;
+                lock (ConfigStore.SyncRoot)
+                    account = AppServices.Config.Accounts
+                        .FirstOrDefault(a => a.Enabled && !string.IsNullOrEmpty(a.Token));
                 await ModelCatalog.AggregateAsync(AppServices.Config, account);
                 RefreshModelListStatus();
             }

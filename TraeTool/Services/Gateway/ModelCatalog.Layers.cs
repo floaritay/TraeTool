@@ -52,7 +52,15 @@ public static partial class ModelCatalog
     public static bool IsHidden(AppSettings cfg, string id)
         => Overrides(cfg).Any(o => o.Hidden && string.Equals(o.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    private static IReadOnlyList<ModelOverride> Overrides(AppSettings cfg) => cfg.ModelOverrides ?? [];
+    /// <summary>覆盖项快照：网关线程聚合时 UI 线程可能正在增删列表（结构变更需加锁）。</summary>
+    private static IReadOnlyList<ModelOverride> Overrides(AppSettings cfg)
+    {
+        lock (ConfigStore.SyncRoot)
+        {
+            var list = cfg.ModelOverrides;
+            return list is null ? [] : list.ToList();
+        }
+    }
 
     private static (IReadOnlyList<ModelEntry>, ModelSources) MergeLayers(
         AppSettings cfg, IReadOnlyList<ModelEntry> official, bool includeHidden)
