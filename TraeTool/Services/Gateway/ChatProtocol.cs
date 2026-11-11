@@ -18,8 +18,16 @@ public sealed record ChatRequest(
 
 public sealed record ChatMessage(string Role, string Content);
 
-/// <summary>上游返回：内容、结束原因、模型名。</summary>
-public sealed record ChatCompletion(string Content, string FinishReason, string Model);
+/// <summary>
+/// 上游返回：内容、结束原因、模型名；非流式附带工具调用（OpenAI 形状 JSON 数组）与真实用量。
+/// </summary>
+public sealed record ChatCompletion(
+    string Content,
+    string FinishReason,
+    string Model,
+    string? ToolCalls = null,
+    int? PromptTokens = null,
+    int? CompletionTokens = null);
 
 /// <summary>上游错误（转发层据此回 OpenAI 形状的错误）。</summary>
 public sealed record ChatUpstreamError(string Message, string Type, int Status);
@@ -67,11 +75,18 @@ public static class ChatProtocol
             ? t.GetDouble() : null;
         int? maxTokens = root.TryGetProperty("max_tokens", out var mt) && mt.ValueKind == JsonValueKind.Number
             ? mt.GetInt32() : null;
-        bool stream = root.TryGetProperty("stream", out var s) &&
-                      (s.ValueKind == JsonValueKind.True || s.ValueKind == JsonValueKind.String);
+        bool stream = root.TryGetProperty("stream", out var s) && StreamRequested(s);
 
         return new ChatRequest(model!, list, stream, temperature, maxTokens);
     }
+
+    /// <summary>
+    /// stream 字段取真：JSON true 或字符串 "true"；false / "false" / "0" 等一律为假。
+    /// 三协议共用，避免同一请求在不同端点被判成不同模式。
+    /// </summary>
+    public static bool StreamRequested(JsonElement s)
+        => s.ValueKind == JsonValueKind.True ||
+           (s.ValueKind == JsonValueKind.String && bool.TryParse(s.GetString(), out var b) && b);
 
     /// <summary>content 为数组时（OpenAI 多模态/分段写法）按 text 段拼接。</summary>
     private static string FlattenContent(JsonElement array)
@@ -87,9 +102,13 @@ public static class ChatProtocol
         return string.Join("", parts);
     }
 
-    /// <summary>非流式响应体。</summary>
+    /// <summary>非流式响应体：带工具调用与真实用量（上游没给时记 0）。</summary>
     public static string RenderCompletion(ChatCompletion completion, string requestId, long unixSeconds)
-        => Write(new
+    {
+        object message = completion.ToolCalls is { Length: > 0 } tools
+            ? new { role = "assistant", content = completion.Content, tool_calls = JsonNode.Parse(tools) }
+            : (object)new { role = "assistant", content = completion.Content };
+        return Write(new
         {
             id = requestId,
             @object = "chat.completion",
@@ -100,12 +119,109 @@ public static class ChatProtocol
                 new
                 {
                     index = 0,
-                    message = new { role = "assistant", content = completion.Content },
+                    message,
                     finish_reason = completion.FinishReason,
                 },
             },
-            usage = new { prompt_tokens = 0, completion_tokens = 0, total_tokens = 0 },
+            usage = new
+            {
+                prompt_tokens = completion.PromptTokens ?? 0,
+                completion_tokens = completion.CompletionTokens ?? 0,
+                total_tokens = (completion.PromptTokens ?? 0) + (completion.CompletionTokens ?? 0),
+            },
         });
+    }
+
+    /// <summary>
+    /// 把流式 tool_calls 片段合并成非流式数组：按 index 归位，
+    /// function.arguments 追加（新片段已包含旧参数时整段替换，兼容增量与整段两种发法），
+    /// id / name 取首个非空值；输出去掉 index 字段。
+    /// </summary>
+    public static string? MergeToolCalls(string? baseJson, string? fragment)
+    {
+        if (string.IsNullOrWhiteSpace(fragment)) return baseJson;
+        if (string.IsNullOrWhiteSpace(baseJson)) return fragment;
+
+        var baseList = ToolCallList(baseJson);
+        var fragList = ToolCallList(fragment);
+        if (fragList.Count == 0) return baseJson;
+        if (baseList.Count == 0) return fragment;
+
+        // JsonNode 只能有一个父节点：入表前先克隆脱离原解析树
+        var map = new SortedDictionary<int, JsonObject>();
+        for (int i = 0; i < baseList.Count; i++)
+            map[IndexOf(baseList[i], i)] = (JsonObject)baseList[i].DeepClone();
+        for (int i = 0; i < fragList.Count; i++)
+        {
+            var call = fragList[i];
+            var idx = IndexOf(call, i);
+            if (!map.TryGetValue(idx, out var existing))
+            {
+                map[idx] = (JsonObject)call.DeepClone();
+                continue;
+            }
+            if (call["function"] is JsonObject cf)
+            {
+                if (existing["function"] is not JsonObject ef)
+                {
+                    existing["function"] = (JsonObject)cf.DeepClone();
+                }
+                else
+                {
+                    if (cf["arguments"] is JsonValue na && na.TryGetValue<string>(out var newArgs))
+                    {
+                        var oldArgs = ef["arguments"] is JsonValue oa && oa.TryGetValue<string>(out var old)
+                            ? old : "";
+                        // 新片段以旧参数为前缀（增量续写/整段累积）→ 取新；
+                        // 旧参数本身已是完整 JSON（整段重发）→ 取新；否则按增量拼接
+                        ef["arguments"] = newArgs.StartsWith(oldArgs, StringComparison.Ordinal) ||
+                                          IsCompleteJson(oldArgs)
+                            ? newArgs : oldArgs + newArgs;
+                    }
+                    if (cf["name"] is JsonValue nn && nn.TryGetValue<string>(out var name) && name.Length > 0)
+                        ef["name"] = name;
+                }
+            }
+            if (call["id"] is JsonValue idv && idv.TryGetValue<string>(out var id) && id.Length > 0)
+                existing["id"] = id;
+        }
+
+        foreach (var o in map.Values) o.Remove("index");
+        return new JsonArray(map.Values.Cast<JsonNode>().ToArray()).ToJsonString();
+
+        static List<JsonObject> ToolCallList(string json)
+        {
+            try
+            {
+                return JsonNode.Parse(json) switch
+                {
+                    JsonArray arr => arr.OfType<JsonObject>().ToList(),
+                    JsonObject single => [single],
+                    _ => [],
+                };
+            }
+            catch (JsonException)
+            {
+                return [];
+            }
+        }
+
+        static int IndexOf(JsonObject call, int fallback)
+            => call["index"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : fallback;
+
+        static bool IsCompleteJson(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            try
+            {
+                return JsonNode.Parse(s) != null;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+    }
 
     /// <summary>流式分段：chunk 的 SSE 文本；done=true 时发送结束分段。</summary>
     public static string RenderChunk(ChatCompletion completion, string requestId, long unixSeconds,

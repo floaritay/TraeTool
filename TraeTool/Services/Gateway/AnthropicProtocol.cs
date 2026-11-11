@@ -51,8 +51,7 @@ public static class AnthropicProtocol
 
         int? maxTokens = root.TryGetProperty("max_tokens", out var mt) && mt.ValueKind == JsonValueKind.Number
             ? mt.GetInt32() : null;
-        bool stream = root.TryGetProperty("stream", out var s) &&
-                      s.ValueKind == JsonValueKind.True;
+        bool stream = root.TryGetProperty("stream", out var s) && ChatProtocol.StreamRequested(s);
 
         return new ChatRequest(model!, list, stream, null, maxTokens);
     }
@@ -101,7 +100,11 @@ public static class AnthropicProtocol
             content = new[] { new { type = "text", text = completion.Content } },
             stop_reason = MapStopReason(completion.FinishReason),
             stop_sequence = (string?)null,
-            usage = new { input_tokens = 0, output_tokens = 0 },
+            usage = new
+            {
+                input_tokens = completion.PromptTokens ?? 0,
+                output_tokens = completion.CompletionTokens ?? 0,
+            },
         });
 
     /// <summary>流式帧序列（message_start → content_block → message_delta → message_stop）。</summary>

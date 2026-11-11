@@ -83,7 +83,7 @@ public sealed partial class LocalGateway
             }
 
             last = res.Error!;
-            var decision = RetryPolicy.Decide(last, tries);
+            var decision = RetryPolicy.Decide(last, tries, res.RetryAfter);
             ClassifyFailover(account, last, now, decision.Cooldown);
 
             if (decision.Action == RetryAction.Fatal) return (null, last, StatusFor(last));

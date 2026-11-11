@@ -8,6 +8,9 @@ public sealed record UpstreamResult(ChatCompletion? Completion, ChatUpstreamErro
 {
     public bool Ok => Completion != null;
 
+    /// <summary>失败时上游给出的 Retry-After（限流等待），供失败处置退避使用。</summary>
+    public TimeSpan? RetryAfter { get; init; }
+
     public static UpstreamResult From(ChatCompletion completion) => new(completion, null);
 
     public static UpstreamResult Fail(string message, string type, int status)
@@ -68,14 +71,20 @@ public interface IChatUpstream
 
     /// <summary>
     /// 非流式：消费 <see cref="StreamAsync"/> 把增量拼成一次回答，中途被截断视为失败。
+    /// 正文 / 思考 / 工具调用片段、终末项的用量与 Retry-After 都保留；
+    /// 只有既无正文也无工具调用时才判「没有可用文本」。
     /// </summary>
     async Task<UpstreamResult> CompleteAsync(Account account, ChatRequest request, CancellationToken ct)
     {
         var text = new StringBuilder();
         var reasoning = new StringBuilder();
+        string? tools = null;
         var finish = "stop";
         ChatUpstreamError? error = null;
         var truncated = false;
+        int? promptTokens = null;
+        int? completionTokens = null;
+        TimeSpan? retryAfter = null;
 
         await foreach (var delta in StreamAsync(account, request, ct))
         {
@@ -84,16 +93,24 @@ public interface IChatUpstream
                 finish = outcome.FinishReason;
                 error = outcome.Error;
                 truncated = outcome.Truncated;
+                promptTokens = outcome.PromptTokens;
+                completionTokens = outcome.CompletionTokens;
+                retryAfter = outcome.RetryAfter;
                 break;
             }
             if (delta.Content is { Length: > 0 } content) text.Append(content);
             else if (delta.Reasoning is { Length: > 0 } reason) reasoning.Append(reason);
+            if (delta.ToolCalls is { Length: > 0 } fragment)
+                tools = ChatProtocol.MergeToolCalls(tools, fragment);
         }
 
-        if (error != null) return new UpstreamResult(null, error);
+        if (error != null)
+            return new UpstreamResult(null, error) { RetryAfter = retryAfter };
         if (truncated) return UpstreamResult.Fail("上游流中断", "upstream_error", 502);
-        if (text.Length == 0) text = reasoning;   // 没有正文时退回思考，总好过报无文本
-        if (text.Length == 0) return UpstreamResult.Fail("上游返回没有可用文本", "upstream_error", 502);
-        return UpstreamResult.From(new ChatCompletion(text.ToString(), finish, request.Model));
+        if (text.Length == 0 && tools == null) text = reasoning;   // 没有正文时退回思考，总好过报无文本
+        if (text.Length == 0 && tools == null)
+            return UpstreamResult.Fail("上游返回没有可用文本", "upstream_error", 502);
+        return UpstreamResult.From(new ChatCompletion(text.ToString(), finish, request.Model,
+            tools, promptTokens, completionTokens));
     }
 }

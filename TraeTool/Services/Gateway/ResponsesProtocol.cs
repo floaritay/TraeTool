@@ -70,7 +70,7 @@ public static class ResponsesProtocol
             ? t.GetDouble() : null;
         int? maxTokens = root.TryGetProperty("max_output_tokens", out var mo) && mo.ValueKind == JsonValueKind.Number
             ? mo.GetInt32() : null;
-        var stream = root.TryGetProperty("stream", out var s) && s.ValueKind == JsonValueKind.True;
+        var stream = root.TryGetProperty("stream", out var s) && ChatProtocol.StreamRequested(s);
 
         var ignored = UnsupportedFields.Where(field => root.TryGetProperty(field, out _)).ToList();
         if (ignored.Count > 0)
@@ -132,7 +132,7 @@ public static class ResponsesProtocol
         var response = Skeleton(requestId, completion.Model, unixSeconds,
             incomplete ? "incomplete" : "completed",
             Output(requestId, completion.Content),
-            Usage(null, null),
+            Usage(completion.PromptTokens, completion.CompletionTokens),
             incomplete ? new { reason = "max_output_tokens" } : null);
         response["stop_reason"] = null;
         return Js(response);

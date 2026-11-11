@@ -42,6 +42,69 @@ public class ChatProtocolTests
         Assert.True(req.Stream);
     }
 
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("\"true\"", true)]
+    [InlineData("false", false)]
+    [InlineData("\"false\"", false)]
+    [InlineData("\"0\"", false)]
+    public void ParseRequest_stream_only_true_variants_enable_streaming(string raw, bool expected)
+    {
+        // 任意字符串都当 true 会让 "false" 也被判成流式，与另两个协议不一致
+        var req = ChatProtocol.ParseRequest(
+            $$"""{"model":"m","messages":[{"role":"user","content":"x"}],"stream":{{raw}}}""");
+
+        Assert.Equal(expected, req.Stream);
+    }
+
+    [Fact]
+    public void MergeToolCalls_appends_incremental_arguments_by_index()
+    {
+        var first = """[{"index":0,"id":"c1","type":"function","function":{"name":"f","arguments":"{\"a\":1"}}]""";
+        var next = """[{"index":0,"function":{"arguments":",\"b\":2}"}}]""";
+
+        var merged = ChatProtocol.MergeToolCalls(first, next);
+
+        Assert.NotNull(merged);
+        using var doc = JsonDocument.Parse(merged!);
+        var call = doc.RootElement[0];
+        Assert.Equal("c1", call.GetProperty("id").GetString());
+        Assert.Equal("f", call.GetProperty("function").GetProperty("name").GetString());
+        Assert.Equal("{\"a\":1,\"b\":2}", call.GetProperty("function").GetProperty("arguments").GetString());
+        Assert.False(call.TryGetProperty("index", out _));
+    }
+
+    [Fact]
+    public void MergeToolCalls_whole_frame_replaces_when_it_contains_previous_arguments()
+    {
+        var first = """[{"index":0,"id":"c1","function":{"name":"f","arguments":"{\"a\":1}"}}]""";
+        var whole = """[{"index":0,"id":"c1","function":{"name":"f","arguments":"{\"a\":1,\"b\":2}"}}]""";
+
+        var merged = ChatProtocol.MergeToolCalls(first, whole);
+
+        Assert.NotNull(merged);
+        using var doc = JsonDocument.Parse(merged!);
+        Assert.Equal(1, doc.RootElement.GetArrayLength());
+        Assert.Equal("{\"a\":1,\"b\":2}",
+            doc.RootElement[0].GetProperty("function").GetProperty("arguments").GetString());
+    }
+
+    [Fact]
+    public void RenderCompletion_emits_tool_calls_and_usage()
+    {
+        var completion = new ChatCompletion("", "tool_calls", "trae",
+            """[{"id":"c1","type":"function","function":{"name":"f","arguments":"{}"}}]""", 7, 5);
+        var json = ChatProtocol.RenderCompletion(completion, "chatcmpl-1", 1);
+        using var doc = JsonDocument.Parse(json);
+
+        var message = doc.RootElement.GetProperty("choices")[0].GetProperty("message");
+        Assert.Equal("c1", message.GetProperty("tool_calls")[0].GetProperty("id").GetString());
+        var usage = doc.RootElement.GetProperty("usage");
+        Assert.Equal(7, usage.GetProperty("prompt_tokens").GetInt32());
+        Assert.Equal(5, usage.GetProperty("completion_tokens").GetInt32());
+        Assert.Equal(12, usage.GetProperty("total_tokens").GetInt32());
+    }
+
     [Fact]
     public void ParseRequest_flattens_array_content()
     {
