@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -10,8 +11,8 @@ using TraeTool.ViewModels;
 
 namespace TraeTool.Services;
 
-/// <summary>一次可用的更新信息。</summary>
-public sealed record UpdateInfo(string Version, string? Notes, string PackageUrl);
+/// <summary>一次可用的更新信息。Sha256 空 = 更新源未提供校验和。</summary>
+public sealed record UpdateInfo(string Version, string? Notes, string PackageUrl, string? Sha256 = null);
 
 /// <summary>检查结果：Update 非空=有新版；UpToDate=true=已最新；Error 非空=失败。</summary>
 public sealed record UpdateCheck(UpdateInfo? Update, bool UpToDate, string? Error);
@@ -19,7 +20,9 @@ public sealed record UpdateCheck(UpdateInfo? Update, bool UpToDate, string? Erro
 /// <summary>
 /// 自动更新（更新源可配置）：
 ///  - GitHub Releases API（…/repos/owner/repo/releases/latest，取 tag_name + .zip 资产）
-///  - 普通 version.json：{"version":"1.2.0","url":"https://…/TraeTool-1.2.0.zip","notes":"…"}
+///  - 普通 version.json：{"version":"1.2.0","url":"https://…/TraeTool-1.2.0.zip","sha256":"…"}
+/// 校验：更新源提供 SHA256 时（GitHub 资产 digest / 同名 .sha256 资产 / version.json 字段）
+///       下载后必须匹配，不匹配拒绝安装；未提供则记录日志后继续。
 /// 安装 = 下载解压到暂存区 → 写一个等待本进程退出的 bat（xcopy 覆盖后重启）→ 退出。
 /// </summary>
 public static class UpdateService
@@ -30,7 +33,7 @@ public static class UpdateService
     /// </summary>
     public const string DefaultFeedUrl = "https://api.github.com/repos/floaritay/TraeTool/releases/latest";
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private static HttpClient Http => HttpClients.Default;
 
     public static Version CurrentVersion =>
         Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0);
@@ -57,6 +60,7 @@ public static class UpdateService
             string version;
             string? notes = null;
             string? url;
+            string? sha256 = null;
             if (feedUrl.Contains("api.github.com/repos", StringComparison.OrdinalIgnoreCase))
             {
                 using var req = new HttpRequestMessage(HttpMethod.Get, feedUrl.Trim());
@@ -70,6 +74,7 @@ public static class UpdateService
                 version = (root.TryGetProperty("tag_name", out var t) ? t.GetString() : "")?.TrimStart('v', 'V') ?? "";
                 if (root.TryGetProperty("body", out var b)) notes = b.GetString();
                 url = null;
+                string? shaAsset = null;
                 if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var a in assets.EnumerateArray())
@@ -78,12 +83,23 @@ public static class UpdateService
                         if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                         {
                             url = a.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
-                            break;
+                            // GitHub 资产摘要（形如 "sha256:<hex>"）
+                            if (a.TryGetProperty("digest", out var d) && d.ValueKind == JsonValueKind.String)
+                                sha256 = NormalizeHash(d.GetString());
+                        }
+                        else if (name.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase))
+                        {
+                            shaAsset = a.TryGetProperty("browser_download_url", out var su) ? su.GetString() : null;
                         }
                     }
                 }
                 if (string.IsNullOrEmpty(url))
                     return new UpdateCheck(null, false, "更新源里没有 .zip 安装包资产");
+                if (sha256 == null && !string.IsNullOrEmpty(shaAsset))
+                {
+                    try { sha256 = NormalizeHash(await Http.GetStringAsync(shaAsset)); }
+                    catch (Exception ex) { AppLog.Error("update", "读取 .sha256 资产失败: " + ex.Message); }
+                }
             }
             else
             {
@@ -92,6 +108,7 @@ public static class UpdateService
                 version = doc.RootElement.GetProperty("version").GetString() ?? "";
                 url = doc.RootElement.GetProperty("url").GetString();
                 if (doc.RootElement.TryGetProperty("notes", out var n)) notes = n.GetString();
+                if (doc.RootElement.TryGetProperty("sha256", out var s)) sha256 = NormalizeHash(s.GetString());
                 if (string.IsNullOrEmpty(url))
                     return new UpdateCheck(null, false, "version.json 缺少 url 字段");
             }
@@ -100,7 +117,7 @@ public static class UpdateService
                 return new UpdateCheck(null, false, $"无法解析版本号：{version}");
             if (ver <= CurrentVersion)
                 return new UpdateCheck(null, true, null);
-            return new UpdateCheck(new UpdateInfo(version, notes, url!), false, null);
+            return new UpdateCheck(new UpdateInfo(version, notes, url!, sha256), false, null);
         }
         catch (Exception ex)
         {
@@ -108,7 +125,7 @@ public static class UpdateService
         }
     }
 
-    /// <summary>下载并解压到暂存区；返回 staging 目录，失败返回错误文本。</summary>
+    /// <summary>下载并解压到暂存区；返回 staging 目录或错误文本。更新源给出校验和时强制比对。</summary>
     public static async Task<(string? Staging, string? Error)> DownloadAndStageAsync(
         UpdateInfo info, IProgress<string>? progress = null)
     {
@@ -122,6 +139,23 @@ public static class UpdateService
             progress?.Report("下载更新包…");
             var bytes = await Http.GetByteArrayAsync(info.PackageUrl);
             if (bytes.Length < 1024) return (null, "更新包异常（过小）");
+
+            if (!string.IsNullOrEmpty(info.Sha256))
+            {
+                progress?.Report("校验更新包完整性…");
+                var actual = Sha256Hex(bytes);
+                if (!string.Equals(actual, info.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    AppLog.Error("update", $"更新包 SHA256 不匹配：期望 {info.Sha256}，实际 {actual}");
+                    return (null, "更新包完整性校验失败（SHA256 不匹配），已拒绝安装");
+                }
+                AppLog.Info("update", "更新包 SHA256 校验通过");
+            }
+            else
+            {
+                AppLog.Info("update", "更新源未提供 SHA256，跳过完整性校验");
+            }
+
             await File.WriteAllBytesAsync(zip, bytes);
 
             progress?.Report("解压中…");
@@ -141,6 +175,28 @@ public static class UpdateService
             return (null, "下载/解压失败：" + ex.Message);
         }
     }
+
+    /// <summary>版本比较：candidate 是否高于 current（解析失败返回 false）。</summary>
+    public static bool IsNewerVersion(string candidate, Version current)
+        => Version.TryParse(candidate?.Trim().TrimStart('v', 'V'), out var v) && v > current;
+
+    /// <summary>字节流 SHA256（小写十六进制）。</summary>
+    public static string Sha256Hex(byte[] data)
+        => Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
+
+    /// <summary>归一化校验和写法：取 sha256sum 文本首段，剥离 "sha256:" 前缀，转小写。</summary>
+    public static string? NormalizeHash(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var token = raw.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0];
+        if (token.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+            token = token["sha256:".Length..];
+        token = token.Trim().ToLowerInvariant();
+        return token.Length == 64 && token.All(IsHex) ? token : null;
+    }
+
+    private static bool IsHex(char c)
+        => c is >= '0' and <= '9' or >= 'a' and <= 'f';
 
     /// <summary>
     /// 写等待脚本并重启安装：bat 等本进程退出 → xcopy 覆盖 → 启动新版本 → 自删。

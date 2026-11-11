@@ -19,6 +19,14 @@ public sealed record DeviceResetItem(string Item, bool Ok, string Detail);
 /// </summary>
 public static class DeviceResetService
 {
+    /// <summary>本重置覆盖不到的本机标识结构（界面列明，避免误以为已彻底重置）。</summary>
+    public static readonly IReadOnlyList<string> UncoveredStructures =
+    [
+        "aha / TinyStorage（客户端内嵌存储，结构与位置随版本变化）",
+        "ahanet 相关配置",
+        "系统级硬件标识（磁盘序列号 / 网卡 MAC / 主板信息）",
+    ];
+
     public static async Task<List<DeviceResetItem>> ResetClientAsync(
         bool machineId, bool telemetry, bool machineGuid, IProgress<string>? log)
     {

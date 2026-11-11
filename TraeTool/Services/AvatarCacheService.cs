@@ -13,7 +13,7 @@ namespace TraeTool.Services;
 /// </summary>
 public static class AvatarCacheService
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static HttpClient Http => HttpClients.For(10);
     private static readonly string Dir = Path.Combine(Paths.Root, "avatars");
     private static readonly Dictionary<string, Task<ImageSource?>> _mem = new();
     private static readonly object _lock = new();

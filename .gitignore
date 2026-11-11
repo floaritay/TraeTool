@@ -5,10 +5,15 @@
 *.suo
 .vs/
 *.wpftmp.*
+# 自定义 BaseOutputPath 输出目录（/build/、以及路径分隔符被 shell 吃掉后产生的 traetoolbuild* 目录）
+/build/
+/traetoolbuild*/
+/TraeTool/traetoolbuild*/
 
 # ── 本地截图（含真实 UID/手机号，禁止入库）──────
 /ui-*.png
 /exe-icon-check.png
+/屏幕截图*.png
 
 # ── 更新源测试物料（14MB，仅本地自检用）─────────
 /_updatefeed/

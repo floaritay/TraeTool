@@ -26,6 +26,12 @@ public class AppSettings
     /// <summary>批量签到的账号基础间隔秒数（执行时附加 ±2s 随机抖动）。</summary>
     public int CheckinIntervalSeconds { get; set; } = 5;
 
+    /// <summary>连续签到失败达此次数即在当日暂停该账号（次日自动恢复）的默认阈值。</summary>
+    public const int DefaultFailSuspendThreshold = 3;
+
+    /// <summary>连续签到失败达到该次数后当日暂停该账号（次日自动恢复）。</summary>
+    public int CheckinFailSuspendThreshold { get; set; } = DefaultFailSuspendThreshold;
+
     /// <summary>开机自启动（HKCU Run 键）。</summary>
     public bool StartWithWindows { get; set; }
 
@@ -53,9 +59,80 @@ public class AppSettings
     /// <summary>更新源 URL（GitHub Releases API 或 version.json；空 = 未配置更新源）。</summary>
     public string? UpdateFeedUrl { get; set; }
 
+    /// <summary>出站代理模式：仅约束本工具自己的网络请求与 WebView2 登录页，见 <see cref="ProxyModes"/>。</summary>
+    public string ProxyMode { get; set; } = ProxyModes.System;
+
+    /// <summary>手动代理地址（ProxyMode=manual 时生效），如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080。</summary>
+    public string? ProxyUrl { get; set; }
+
+    /// <summary>本机管理网关开关（只监听 127.0.0.1，提供状态查询与远程签到触发）。</summary>
+    public bool GatewayEnabled { get; set; }
+
+    /// <summary>本机管理网关默认端口（127.0.0.1 上的 HTTP）。</summary>
+    public const int DefaultGatewayPort = 8766;
+
+    /// <summary>本机管理网关监听端口（127.0.0.1 上的 HTTP）。</summary>
+    public int GatewayPort { get; set; } = DefaultGatewayPort;
+
+    /// <summary>本机管理网关访问令牌；首次开启时生成，随 config.json 保存。</summary>
+    public string? GatewayToken { get; set; }
+
+    /// <summary>启用网关的 OpenAI 兼容转发（/v1/*，在账号池间取号调上游）；需同时开启网关。</summary>
+    public bool GatewayChatEnabled { get; set; }
+
+    /// <summary>
+    /// 模型列表第 1 层：人工维护的覆盖项。与目录中的 id 同名即覆盖该条目的字段，
+    /// 不同名即自建条目；「删除」记成 <see cref="ModelOverride.Hidden"/>，可恢复。
+    /// </summary>
+    public List<ModelOverride> ModelOverrides { get; set; } = new();
+
+    /// <summary>旧版第 1 层（逗号/换行分隔的模型名）；读取时迁移进 <see cref="ModelOverrides"/> 后清空。</summary>
+    public string? GatewayManualModels { get; set; }
+
+    /// <summary>模型列表第 4 层：本网关收到过的请求模型名（自动累积，换行分隔）。</summary>
+    public string? GatewaySeenModels { get; set; }
+
     public static class DeviceIdModes
     {
         public const string Random = "random";
         public const string FromTraeClient = "client";
     }
+
+    public static class ProxyModes
+    {
+        /// <summary>不使用代理，直连。</summary>
+        public const string None = "none";
+
+        /// <summary>跟随系统代理（系统未设代理时即直连，默认）。</summary>
+        public const string System = "system";
+
+        /// <summary>使用 <see cref="AppSettings.ProxyUrl"/> 指定的代理。</summary>
+        public const string Manual = "manual";
+    }
+}
+
+/// <summary>
+/// 模型列表第 1 层的一条覆盖：字段为 null 表示不改，由官网同步 / 内置层补齐。
+/// 与目录中的 id 同名即覆盖该条目，不同名即自建条目。
+/// </summary>
+public class ModelOverride
+{
+    public string Id { get; set; } = "";
+
+    public string? Display { get; set; }
+
+    public string? Vendor { get; set; }
+
+    public string? Rate { get; set; }
+
+    public string? Efforts { get; set; }
+
+    public string? Context { get; set; }
+
+    public string? LongContext { get; set; }
+
+    public bool? Image { get; set; }
+
+    /// <summary>「删除」= 隐藏：不出现在列表与 /v1/models，官网同步也带不回来，可一键恢复。</summary>
+    public bool Hidden { get; set; }
 }

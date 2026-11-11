@@ -13,7 +13,7 @@ namespace TraeTool.Views;
 /// </summary>
 public partial class MainWindow : Window
 {
-    /// <summary>启动页（--page=checkin/accounts/switch/usage/settings，默认 dashboard）；截图/自动化用。</summary>
+    /// <summary>启动页（--page=checkin/accounts/switch/usage/proxy/gateway/settings，默认 dashboard）；截图/自动化用。</summary>
     public static string StartupPage = "dashboard";
 
     private readonly DashboardPage _dashboardPage = new();
@@ -21,6 +21,8 @@ public partial class MainWindow : Window
     private readonly AccountsPage _accountsPage = new();
     private readonly SwitchPage _switchPage = new();
     private readonly UsagePage _usagePage = new();
+    private readonly ProxyPage _proxyPage = new();
+    private readonly GatewayPage _gatewayPage = new();
     private readonly SettingsPage _settingsPage = new();
 
     private readonly UserControl[] _pages;
@@ -28,7 +30,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _pages = [_dashboardPage, _checkinPage, _accountsPage, _switchPage, _usagePage, _settingsPage];
+        _pages = [_dashboardPage, _checkinPage, _accountsPage, _switchPage, _usagePage,
+                  _proxyPage, _gatewayPage, _settingsPage];
         // 默认页由 StartupPage 决定（其余折叠）
         var defaultPage = StartupPage switch
         {
@@ -36,6 +39,8 @@ public partial class MainWindow : Window
             "accounts" => _accountsPage,
             "switch" => _switchPage,
             "usage" => _usagePage,
+            "proxy" => _proxyPage,
+            "gateway" => _gatewayPage,
             "settings" => _settingsPage,
             _ => _dashboardPage,
         };
@@ -53,6 +58,8 @@ public partial class MainWindow : Window
                 case "accounts": NavAccounts.IsChecked = true; break;
                 case "switch": NavSwitch.IsChecked = true; break;
                 case "usage": NavUsage.IsChecked = true; break;
+                case "proxy": NavProxy.IsChecked = true; break;
+                case "gateway": NavGateway.IsChecked = true; break;
                 case "settings": NavSettings.IsChecked = true; break;
             }
         };
@@ -67,7 +74,9 @@ public partial class MainWindow : Window
                 _accountsPage.DataContext = vm.Accounts;
                 _switchPage.DataContext = vm.Switch;
                 _usagePage.DataContext = vm.Usage;
-                _settingsPage.DataContext = vm.Accounts; // 设置页复用账号 VM 的三个开关（改动即落盘）
+                _proxyPage.DataContext = vm.Settings;
+                _gatewayPage.DataContext = vm.Settings;
+                _settingsPage.DataContext = vm.Settings;
             }
         };
     }
@@ -118,11 +127,27 @@ public partial class MainWindow : Window
         (DataContext as MainViewModel)?.Usage.OnNavEnter();
     }
 
+    private void OnNavProxy(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        AppLog.Info("nav", "切到出站代理页");
+        ShowOnly(_proxyPage);
+    }
+
+    private void OnNavGateway(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        AppLog.Info("nav", "切到本机网关页");
+        ShowOnly(_gatewayPage);
+        (DataContext as MainViewModel)?.Settings.EnsureModelListSynced();
+    }
+
     private void OnNavSettings(object sender, RoutedEventArgs e)
     {
         if (!IsLoaded) return;
         AppLog.Info("nav", "切到设置页");
         ShowOnly(_settingsPage);
+        (DataContext as MainViewModel)?.Settings.EnsureModelListSynced();
     }
 
     // ---- 标题栏窗口按钮 ----

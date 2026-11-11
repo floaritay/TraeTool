@@ -30,6 +30,8 @@ public static class Icons
     public static readonly Geometry Check = G("M20 6 L9 17 l-5-5");
     public static readonly Geometry CheckCheck = G("M18 6 L7 17 l-5-5 M22 10 L14.5 17.5 L13 16");
     public static readonly Geometry User = G("M19 21 v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2 M8 7 A4 4 0 1 0 16 7 A4 4 0 1 0 8 7 Z");
+    public static readonly Geometry Globe = G("M12 2 a10 10 0 1 0 0 20 a10 10 0 0 0 0-20 M2 12 h20 M12 2 a15.3 15.3 0 0 1 4 10 a15.3 15.3 0 0 1-4 10 a15.3 15.3 0 0 1-4-10 a15.3 15.3 0 0 1 4-10");
+    public static readonly Geometry Server = G("M2 2 H22 V10 H2 Z M2 14 H22 V22 H2 Z M6 6 h.01 M6 18 h.01");
     public static readonly Geometry Monitor = G("M4 3 H20 A2 2 0 0 1 22 5 V15 A2 2 0 0 1 20 17 H4 A2 2 0 0 1 2 15 V5 A2 2 0 0 1 4 3 Z M8 21 L16 21 M12 17 L12 21");
     public static readonly Geometry Database = G("M3 5 V19A9 3 0 0 0 21 19V5 M3 12 A9 3 0 0 0 21 12");
     public static readonly Geometry Minus = G("M5 12 h14");

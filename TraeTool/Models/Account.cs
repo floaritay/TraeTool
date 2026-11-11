@@ -32,6 +32,12 @@ public class Account
     /// <summary>该账号最近一次签到日期（yyyy-MM-dd），本地当日去重键。</summary>
     public DateOnly? LastCheckinDate { get; set; }
 
+    /// <summary>连续签到失败次数（成功或已签即清零）；达到阈值后当日暂停签到。</summary>
+    public int FailStreak { get; set; }
+
+    /// <summary>暂停签到截止日期（含当日，次日自动恢复）；为空表示未暂停。</summary>
+    public DateOnly? SuspendedUntil { get; set; }
+
     /// <summary>该账号最近一次剩余积分；-1 表示尚未获取过。</summary>
     public double RemainingCredits { get; set; } = -1;
 

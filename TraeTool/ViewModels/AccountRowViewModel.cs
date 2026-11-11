@@ -66,6 +66,18 @@ public partial class AccountRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _studentVerified;
 
+    /// <summary>健康徽标文案（正常 / 已暂停 / 登录过期）。</summary>
+    [ObservableProperty]
+    private string _healthText = "";
+
+    /// <summary>健康徽标等级：ok / warn。</summary>
+    [ObservableProperty]
+    private string _healthLevel = "ok";
+
+    /// <summary>是否显示健康徽标（正常态不显示，减少噪声）。</summary>
+    [ObservableProperty]
+    private bool _showHealthBadge;
+
     private string? _loadedAvatarUrl;
 
     /// <summary>头像色相（由 Id 稳定推导，0~359）。</summary>
@@ -104,9 +116,21 @@ public partial class AccountRowViewModel : ObservableObject
     {
         var loggedIn = !string.IsNullOrEmpty(Account.Token) || !string.IsNullOrEmpty(Account.Session);
         var signedToday = Account.LastCheckinDate == DateOnly.FromDateTime(DateTime.Today);
+        var health = AccountHealth.Evaluate(Account, DateTime.Today);
 
         IsLoggedIn = loggedIn;
-        StatusLevel = !loggedIn ? "warn" : signedToday ? "ok" : "info";
+        HealthLevel = health == "ok" ? "ok" : "warn";
+        HealthText = health switch
+        {
+            "suspended" => "已暂停",
+            "expired" => "登录过期",
+            "offline" => "未登录",
+            _ => "正常",
+        };
+        ShowHealthBadge = health is "suspended" or "expired";
+        StatusLevel = !loggedIn || health is "suspended" or "expired"
+            ? "warn"
+            : signedToday ? "ok" : "info";
         StudentVerified = Account.StudentVerified;
 
         if (!string.IsNullOrEmpty(Account.AvatarUrl) && Account.AvatarUrl != _loadedAvatarUrl)
@@ -117,7 +141,10 @@ public partial class AccountRowViewModel : ObservableObject
 
         var parts = new List<string>
         {
-            !loggedIn ? "未登录" : signedToday ? "今日已签 ✓" : "已登录，待签到",
+            !loggedIn ? "未登录"
+            : health == "suspended" ? $"签到已暂停（连续失败 {Account.FailStreak} 次，次日自动恢复）"
+            : health == "expired" ? "登录态过期，请重新登录"
+            : signedToday ? "今日已签 ✓" : "已登录，待签到",
         };
         if (Account.RemainingCredits >= 0)
             parts.Add($"剩 {Account.RemainingCredits:0.#}");

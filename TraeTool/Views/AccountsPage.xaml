@@ -143,6 +143,13 @@
                                                                    Foreground="{DynamicResource WarnBrush}"/>
                                                     </Border>
                                                     <Border Style="{StaticResource Badge}"
+                                                            Background="{DynamicResource WarnSoftBrush}"
+                                                            BorderBrush="{DynamicResource WarnLineBrush}"
+                                                            Visibility="{Binding ShowHealthBadge, Converter={x:Static views:BoolToVisConverter.TrueInstance}}">
+                                                        <TextBlock Text="{Binding HealthText}" FontSize="10"
+                                                                   Foreground="{DynamicResource WarnBrush}"/>
+                                                    </Border>
+                                                    <Border Style="{StaticResource Badge}"
                                                             Background="{DynamicResource SuccessSoftBrush}"
                                                             BorderBrush="{DynamicResource SuccessLineBrush}"
                                                             Visibility="{Binding StudentVerified, Converter={x:Static views:BoolToVisConverter.TrueInstance}}">

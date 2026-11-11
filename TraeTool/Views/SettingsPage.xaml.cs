@@ -2,16 +2,24 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using TraeTool.Services;
+using TraeTool.ViewModels;
 
 namespace TraeTool.Views;
 
-/// <summary>设置页（P6）：行为开关绑定 AccountsPageViewModel（改动即落盘）+ 外观/Token/更新/日志 + 关于。</summary>
+/// <summary>设置页：绑定 SettingsPageViewModel，另负责日志读取与备份口令输入（PasswordBox 不支持绑定）。</summary>
 public partial class SettingsPage : System.Windows.Controls.UserControl
 {
     public SettingsPage()
     {
         InitializeComponent();
         Loaded += (_, _) => LoadLog();
+    }
+
+    /// <summary>口令框无绑定能力，变更时手工推给 VM（导出与导入共用同一口令）。</summary>
+    private void OnBackupPasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is SettingsPageViewModel vm)
+            vm.BackupPassword = BackupPasswordBox.Password;
     }
 
     /// <summary>读今天日志的最后 150 行（纯展示，异常兜底）。</summary>

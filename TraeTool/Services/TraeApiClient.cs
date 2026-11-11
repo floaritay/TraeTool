@@ -36,12 +36,7 @@ public static class TraeApiClient
     public const string BaseUrl = "https://api.trae.cn";
     public const int CodeDeviceRisk = 9074; // 「参与用户太多」：设备号被风控
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
-
-    static TraeApiClient()
-    {
-        Http.DefaultRequestHeaders.UserAgent.ParseAdd("TraeTool/1.0");
-    }
+    private static HttpClient Http => HttpClients.Default;
 
     /// <summary>备用全头集开关（见类注释）。默认 false。</summary>
     public static bool UseFallbackHeaders { get; set; }

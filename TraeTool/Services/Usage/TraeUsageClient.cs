@@ -15,7 +15,7 @@ public sealed class TraeUsageClient
 {
     private const string BaseUrl = "https://api.trae.cn";
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private static HttpClient Http => HttpClients.Default;
 
     public string? LastError { get; private set; }
 

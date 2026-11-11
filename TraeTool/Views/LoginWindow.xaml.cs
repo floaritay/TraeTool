@@ -40,7 +40,12 @@ public partial class LoginWindow : Window
         {
             var userDataDir = Paths.WebViewProfileDir(_accountId);
             Directory.CreateDirectory(userDataDir);
-            var env = await CoreWebView2Environment.CreateAsync(null, userDataDir);
+            // 出站代理对浏览器进程单独生效（与 HttpClients 共用同一份配置）
+            var proxyArgs = HttpClients.Proxy.BrowserArguments();
+            var envOptions = string.IsNullOrEmpty(proxyArgs)
+                ? null
+                : new CoreWebView2EnvironmentOptions { AdditionalBrowserArguments = proxyArgs };
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataDir, envOptions);
             await WebView.EnsureCoreWebView2Async(env);
             WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;

@@ -10,6 +10,7 @@ namespace TraeTool.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     public AccountsPageViewModel Accounts { get; }
+    public SettingsPageViewModel Settings { get; }
     public CheckinPageViewModel Checkin { get; }
     public SwitchPageViewModel Switch { get; }
     public DashboardViewModel Dashboard { get; }
@@ -53,6 +54,7 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel()
     {
         Accounts = new AccountsPageViewModel();
+        Settings = new SettingsPageViewModel(Accounts); // 借用账号行集合展示 Token
         Checkin = new CheckinPageViewModel();
         Switch = new SwitchPageViewModel();
         Dashboard = new DashboardViewModel(Checkin); // 依赖 Checkin（快捷签到复用其批次命令）
@@ -72,7 +74,7 @@ public partial class MainViewModel : ObservableObject
                 // 这里直接调服务层，完成后刷新两页）
                 var enabled = AppServices.Config.Accounts.Where(a => a.Enabled).ToList();
                 if (enabled.Count == 0) return;
-                AppServices.BatchBusy = true;
+                if (!AppServices.TryEnterBatch()) return; // 与手动批次互斥（原子占用）
                 try
                 {
                     var results = await AppServices.Checkin.BatchCheckinAsync(

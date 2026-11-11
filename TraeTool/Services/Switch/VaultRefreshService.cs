@@ -35,11 +35,11 @@ public sealed class VaultRefreshService
     private async Task TickAsync()
     {
         if (_running) return;
-        if (AppServices.BatchBusy || AppServices.SwitchBusy) return; // 有别的活在干
-        if (ClientControl.IsRunning()) return;                       // 客户端在跑，live 被运行时污染，不保鲜
+        if (AppServices.BatchBusy) return;            // 批量签到进行中，不与它抢
+        if (ClientControl.IsRunning()) return;        // 客户端在跑，live 被运行时污染，不保鲜
+        if (!AppServices.TryEnterSwitch()) return;    // 原子占用切换锁，期间阻止建档/切换并发写同一档案
 
         _running = true;
-        AppServices.SwitchBusy = true; // 期间阻止建档/切换并发写同一档案
         try
         {
             var cfg = AppServices.Config;

@@ -171,6 +171,7 @@ public partial class App : System.Windows.Application
     protected override void OnExit(System.Windows.ExitEventArgs e)
     {
         _mainViewModel?.AutoCheckin.Stop();
+        AppServices.Gateway.Stop();
         if (_servicesInitialized) AppServices.SaveConfig(); // 未初始化绝不落盘（防空配置覆盖）
         _tray?.Dispose();
         AppLog.Info("app", "退出");

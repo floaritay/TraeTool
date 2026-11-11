@@ -185,6 +185,22 @@
                                 <TextBlock Text="用量统计" Margin="11,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
+                        <RadioButton Style="{StaticResource NavButton}" x:Name="NavProxy" Checked="OnNavProxy">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{x:Static icons:Icons.Globe}" Style="{StaticResource Ico}"
+                                      Width="16" Height="16"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="出站代理" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource NavButton}" x:Name="NavGateway" Checked="OnNavGateway">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{x:Static icons:Icons.Server}" Style="{StaticResource Ico}"
+                                      Width="16" Height="16"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="本机网关" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
                         <RadioButton Style="{StaticResource NavButton}" x:Name="NavSettings" Checked="OnNavSettings">
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{x:Static icons:Icons.Settings}" Style="{StaticResource Ico}"
@@ -197,7 +213,7 @@
                 </DockPanel>
             </Border>
 
-            <!-- 右侧内容：六页同时驻留，切换 Visibility 保留页面状态 -->
+            <!-- 右侧内容：八页同时驻留，切换 Visibility 保留页面状态 -->
             <Grid x:Name="PageHost" Grid.Column="1"/>
         </Grid>
     </Grid>

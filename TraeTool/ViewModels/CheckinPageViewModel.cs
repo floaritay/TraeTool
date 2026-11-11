@@ -136,16 +136,16 @@ public partial class CheckinPageViewModel : ObservableObject
     [RelayCommand]
     private async Task CheckinAsync()
     {
-        if (AppServices.BatchBusy) return;
+        if (!AppServices.TryEnterBatch()) return;
         var enabled = AppServices.Config.Accounts.Where(a => a.Enabled).ToList();
         if (enabled.Count == 0)
         {
+            AppServices.BatchBusy = false;
             StatusMessage = "没有启用的账号，请到「账号管理」页添加并勾选";
             return;
         }
 
         // 未登录账号不弹窗阻塞批次，在结果中标注
-        AppServices.BatchBusy = true;
         Busy = true;
         StatusMessage = $"正在签到，共 {enabled.Count} 个启用账号…";
         RunLog.Clear();
@@ -309,11 +309,13 @@ public partial class CheckinPageViewModel : ObservableObject
         int fresh = results.Count(r => r.Ok && r.Reason != "今日已签");
         int already = results.Count(r => r.Ok && r.Reason == "今日已签");
         int notLoggedIn = results.Count(r => !r.Ok && r.Reason == "未登录");
-        var fails = results.Where(r => !r.Ok && r.Reason != "未登录").ToList();
+        int suspended = results.Count(r => !r.Ok && r.Reason.StartsWith("已暂停", StringComparison.Ordinal));
+        var fails = results.Where(r => !r.Ok && r.Reason != "未登录" && !r.Reason.StartsWith("已暂停", StringComparison.Ordinal)).ToList();
 
         var parts = new List<string> { $"新签 {fresh}（+{total:0}）" };
         if (already > 0) parts.Add($"已签过 {already}");
         if (notLoggedIn > 0) parts.Add($"未登录 {notLoggedIn}");
+        if (suspended > 0) parts.Add($"已暂停 {suspended}");
         var summary = $"共 {results.Count} 个账号：" + string.Join(" · ", parts);
         if (fails.Count > 0)
             summary += "；失败：" + string.Join("、", fails.Select(f => $"{f.Name}({f.Reason})"));

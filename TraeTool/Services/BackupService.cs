@@ -7,16 +7,22 @@ namespace TraeTool.Services;
 
 /// <summary>
 /// 备份导出/导入。
-/// 导出 = config.json（DPAPI 密文原样）+ checkin.db（VACUUM INTO 快照）+ usage_*.jsonl → zip。
+/// 导出 = config.json（DPAPI 密文原样）+ checkin.db（VACUUM INTO 快照）+ usage_*.jsonl → zip；
+///        给出可选口令时整体加密封装（BackupCrypto，AES-256-GCM + PBKDF2），跨机器可用该口令恢复。
 /// 导入 = 校验 → 危险确认 → 暂存到 %APPDATA%\TraeTool\import_staging\ →
 ///        下次启动在 Database.Open/Config.Load 之前覆盖落位（避免运行中替换被锁文件）。
 /// </summary>
 public static class BackupService
 {
-    /// <summary>导出到指定 zip 路径；成功返回该路径，失败 error 带原因。</summary>
-    public static string? ExportTo(string zipPath, out string? error)
+    /// <summary>
+    /// 导出到指定路径；password 非空时加密封装。
+    /// 成功返回该路径，失败 error 带原因。
+    /// </summary>
+    public static string? ExportTo(string zipPath, out string? error, string? password = null)
     {
         error = null;
+        var tmpZip = Path.Combine(Path.GetTempPath(),
+            "traetool_export_" + Guid.NewGuid().ToString("N") + ".zip");
         try
         {
             if (!File.Exists(Paths.ConfigFile))
@@ -24,36 +30,47 @@ public static class BackupService
                 error = "还没有可导出的配置";
                 return null;
             }
-            if (File.Exists(zipPath)) File.Delete(zipPath);
 
-            using var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create);
-            zip.CreateEntryFromFile(Paths.ConfigFile, "config.json");
-
-            // 签到库在线快照（避免直接拷被 SQLite 持有的 WAL 不一致文件）
-            var tmpDb = Path.Combine(Path.GetTempPath(),
-                "traetool_export_" + Guid.NewGuid().ToString("N") + ".db");
-            try
+            using (var zip = ZipFile.Open(tmpZip, ZipArchiveMode.Create))
             {
-                using (var conn = Database.CreateConnection())
-                using (var cmd = conn.CreateCommand())
+                zip.CreateEntryFromFile(Paths.ConfigFile, "config.json");
+
+                // 签到库在线快照（避免直接拷被 SQLite 持有的 WAL 不一致文件）
+                var tmpDb = Path.Combine(Path.GetTempPath(),
+                    "traetool_export_" + Guid.NewGuid().ToString("N") + ".db");
+                try
                 {
-                    cmd.CommandText = "VACUUM INTO '" + tmpDb.Replace("'", "''") + "'";
-                    cmd.ExecuteNonQuery();
+                    using (var conn = Database.CreateConnection())
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "VACUUM INTO '" + tmpDb.Replace("'", "''") + "'";
+                        cmd.ExecuteNonQuery();
+                    }
+                    zip.CreateEntryFromFile(tmpDb, "data/checkin.db");
                 }
-                zip.CreateEntryFromFile(tmpDb, "data/checkin.db");
-            }
-            finally
-            {
-                if (File.Exists(tmpDb)) File.Delete(tmpDb);
+                finally
+                {
+                    if (File.Exists(tmpDb)) File.Delete(tmpDb);
+                }
+
+                if (Directory.Exists(Paths.DataDir))
+                {
+                    foreach (var f in Directory.GetFiles(Paths.DataDir, "usage_*.jsonl"))
+                        zip.CreateEntryFromFile(f, "data/" + Path.GetFileName(f));
+                }
             }
 
-            if (Directory.Exists(Paths.DataDir))
+            if (File.Exists(zipPath)) File.Delete(zipPath);
+            if (!string.IsNullOrEmpty(password))
             {
-                foreach (var f in Directory.GetFiles(Paths.DataDir, "usage_*.jsonl"))
-                    zip.CreateEntryFromFile(f, "data/" + Path.GetFileName(f));
+                File.WriteAllBytes(zipPath, BackupCrypto.Encrypt(File.ReadAllBytes(tmpZip), password));
+                AppLog.Info("backup", "导出加密备份: " + zipPath);
             }
-
-            AppLog.Info("backup", "导出备份: " + zipPath);
+            else
+            {
+                File.Copy(tmpZip, zipPath, overwrite: true);
+                AppLog.Info("backup", "导出备份（未加密，仅本机同账户可还原）: " + zipPath);
+            }
             return zipPath;
         }
         catch (Exception ex)
@@ -62,61 +79,100 @@ public static class BackupService
             AppLog.Error("backup", "导出失败: " + ex);
             return null;
         }
+        finally
+        {
+            TryDeleteFile(tmpZip);
+        }
     }
 
+    /// <summary>该备份文件是否为口令加密封装。</summary>
+    public static bool IsEncryptedBackup(string path) => BackupCrypto.IsEncryptedFile(path);
+
     /// <summary>
-    /// 校验导入包并暂存（尚未覆盖任何现有数据）。返回 true=暂存成功。
-    /// 校验点：zip 内有 config.json 且能反序列化为 AppSettings。
+    /// 校验导入包并暂存（尚未覆盖任何现有数据）。加密包必须提供正确口令。
+    /// 校验点：可解开容器（若加密）且内含可反序列化的 config.json。
     /// </summary>
-    public static bool StageImport(string zipPath, out string? error)
+    public static bool StageImport(string zipPath, out string? error, string? password = null)
     {
         error = null;
         var staging = Path.Combine(Paths.Root, "import_staging");
+        string? decryptedZip = null;
         try
         {
+            var source = zipPath;
+            if (BackupCrypto.IsEncryptedFile(zipPath))
+            {
+                if (string.IsNullOrEmpty(password))
+                {
+                    error = "该备份已加密，请填写导出时设置的口令";
+                    return false;
+                }
+                try
+                {
+                    decryptedZip = Path.Combine(Path.GetTempPath(),
+                        "traetool_import_" + Guid.NewGuid().ToString("N") + ".zip");
+                    File.WriteAllBytes(decryptedZip, BackupCrypto.Decrypt(File.ReadAllBytes(zipPath), password));
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Error("backup", "备份解密失败: " + ex.Message);
+                    error = "口令错误或备份损坏，无法解密";
+                    return false;
+                }
+                source = decryptedZip;
+            }
+
             if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
             var tmp = Path.Combine(Path.GetTempPath(),
                 "traetool_import_" + Guid.NewGuid().ToString("N"));
-            ZipFile.ExtractToDirectory(zipPath, tmp);
-
-            var cfgFile = Path.Combine(tmp, "config.json");
-            if (!File.Exists(cfgFile))
+            try
             {
-                error = "备份包里没有 config.json";
-                TryDelete(tmp);
-                return false;
-            }
-            var cfg = JsonSerializer.Deserialize<AppSettings>(
-                File.ReadAllText(cfgFile), new JsonSerializerOptions
+                ZipFile.ExtractToDirectory(source, tmp);
+
+                var cfgFile = Path.Combine(tmp, "config.json");
+                if (!File.Exists(cfgFile))
                 {
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
-                });
-            if (cfg == null || cfg.Accounts == null)
-            {
-                error = "config.json 无法解析（不是有效的 TraeTool 备份）";
-                TryDelete(tmp);
-                return false;
-            }
+                    error = "备份包里没有 config.json";
+                    return false;
+                }
+                var cfg = JsonSerializer.Deserialize<AppSettings>(
+                    File.ReadAllText(cfgFile), new JsonSerializerOptions
+                    {
+                        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
+                    });
+                if (cfg == null || cfg.Accounts == null)
+                {
+                    error = "config.json 无法解析（不是有效的 TraeTool 备份）";
+                    return false;
+                }
 
-            Directory.CreateDirectory(staging);
-            // 平移进 staging（保留相对结构：config.json / data/...）
-            foreach (var entry in Directory.GetFiles(tmp, "*", SearchOption.AllDirectories))
-            {
-                var rel = Path.GetRelativePath(tmp, entry);
-                var dest = Path.Combine(staging, rel);
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                File.Copy(entry, dest, overwrite: true);
+                Directory.CreateDirectory(staging);
+                // 平移进 staging（保留相对结构：config.json / data/...）
+                foreach (var entry in Directory.GetFiles(tmp, "*", SearchOption.AllDirectories))
+                {
+                    var rel = Path.GetRelativePath(tmp, entry);
+                    var dest = Path.Combine(staging, rel);
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    File.Copy(entry, dest, overwrite: true);
+                }
+                AppLog.Info("backup", $"导入包已校验并暂存（{cfg.Accounts.Count} 个账号），等待重启应用");
+                return true;
             }
-            TryDelete(tmp);
-            AppLog.Info("backup", $"导入包已校验并暂存（{cfg.Accounts.Count} 个账号），等待重启应用");
-            return true;
+            finally
+            {
+                TryDeleteDir(tmp);
+            }
         }
         catch (Exception ex)
         {
             error = ex.Message;
             AppLog.Error("backup", "暂存导入包失败: " + ex);
-            TryDelete(staging);
+            TryDeleteDir(staging);
             return false;
+        }
+        finally
+        {
+            if (decryptedZip != null) TryDeleteFile(decryptedZip);
         }
     }
 
@@ -153,9 +209,15 @@ public static class BackupService
         }
     }
 
-    private static void TryDelete(string dir)
+    private static void TryDeleteDir(string dir)
     {
         try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+        catch { /* 清理失败无害 */ }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
         catch { /* 清理失败无害 */ }
     }
 }

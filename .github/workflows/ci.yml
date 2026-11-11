@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    # WPF / WinForms / DPAPI 目标框架为 net8.0-windows，需 Windows 代理
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore TraeTool.sln
+
+      - name: Build (Release)
+        run: dotnet build TraeTool.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test TraeTool.Tests/TraeTool.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"

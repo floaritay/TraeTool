@@ -23,17 +23,22 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
         if (string.IsNullOrEmpty(account.Token) && string.IsNullOrEmpty(account.Session))
             return new CheckinResult(account.Id, displayName, false, 0, "未登录");
 
+        // 连续失败已达阈值 → 当日暂停（次日自动恢复），不再发起请求
+        if (AccountHealth.IsSuspended(account, DateTime.Today))
+            return new CheckinResult(account.Id, displayName, false, 0, "已暂停（连续失败，次日自动恢复）");
+
         EnsureDeviceIdUnique(account, cfg);
 
         // 本地当日去重（服务器端还有按 device-id 的每日去重兜底）
         if (skipIfCheckedToday && account.LastCheckinDate == DateOnly.FromDateTime(DateTime.Today))
+        {
+            AccountHealth.OnSuccess(account);
+            saveConfig();
             return new CheckinResult(account.Id, displayName, true, 0, "今日已签");
+        }
 
         if (!await TokenRenewer.EnsureValidTokenAsync(account))
-        {
-            saveConfig();
-            return new CheckinResult(account.Id, displayName, false, 0, "会话失效，请重新登录");
-        }
+            return Fail("会话失效，请重新登录");
         saveConfig(); // 续期可能已写回 Token
 
         var token = account.Token!;
@@ -41,9 +46,9 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
         // —— status 预检：服务器已签而本地漏记 → 补记（不重复 claim）——
         var before = await TraeApiClient.GetStatusAsync(token, account.DeviceId);
         if (before.HttpError != null)
-            return new CheckinResult(account.Id, displayName, false, 0, before.HttpError);
+            return Fail(before.HttpError);
         if (before.Code != 0)
-            return new CheckinResult(account.Id, displayName, false, 0, before.Message ?? $"status code={before.Code}");
+            return Fail(before.Message ?? $"status code={before.Code}");
 
         double beforeCredits = 0;
         if (before.Body is { } beforeBody)
@@ -52,6 +57,7 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
         if (ReadCheckedIn(before.Body))
         {
             account.LastCheckinDate = DateOnly.FromDateTime(DateTime.Today);
+            AccountHealth.OnSuccess(account);
             saveConfig();
             CheckinRecordRepo.Insert(account, 0, 0);
             AppLog.Info("checkin", $"{displayName}: 服务器已签到，本地补记");
@@ -63,7 +69,7 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
         const int MaxAttempts = 3; // 首次 + 2 次换号重试
         var claim = await TraeApiClient.ClaimAsync(token, account.DeviceId);
         if (claim.HttpError != null)
-            return new CheckinResult(account.Id, displayName, false, 0, claim.HttpError);
+            return Fail(claim.HttpError);
 
         int attempt = 1;
         while (claim.Code == TraeApiClient.CodeDeviceRisk && attempt < MaxAttempts)
@@ -77,13 +83,22 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
             saveConfig();
             claim = await TraeApiClient.ClaimAsync(token, account.DeviceId);
             if (claim.HttpError != null)
-                return new CheckinResult(account.Id, displayName, false, 0, claim.HttpError);
+                return Fail(claim.HttpError);
         }
 
         bool claimedNow = claim.Code == 0 || ReadCheckedIn(claim.Body);
         if (!claimedNow)
-            return new CheckinResult(account.Id, displayName, false, 0,
-                claim.Message ?? $"签到失败（code={claim.Code}）");
+            return Fail(claim.Message ?? $"签到失败（code={claim.Code}）");
+
+        // 记一次失败并落盘；连续失败达阈值时当日暂停该账号
+        CheckinResult Fail(string reason)
+        {
+            bool suspended = AccountHealth.OnFailure(account, DateTime.Today, cfg.CheckinFailSuspendThreshold);
+            saveConfig();
+            if (suspended)
+                AppLog.Info("checkin", $"{displayName}: 连续失败 {account.FailStreak} 次，今日暂停签到（次日自动恢复）");
+            return new CheckinResult(account.Id, displayName, false, 0, reason);
+        }
 
         // —— 回查 status 解析本次所得积分（claim 响应不含积分字段）——
         double gained = 0;
@@ -97,6 +112,7 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
         }
 
         account.LastCheckinDate = DateOnly.FromDateTime(DateTime.Today);
+        AccountHealth.OnSuccess(account);
         saveConfig();
         CheckinRecordRepo.Insert(account, gained, claim.Code);
         AppLog.Info("checkin", $"{displayName}: 签到成功 +{gained:0}（device={account.DeviceId}）");
@@ -152,6 +168,9 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
             catch (Exception ex)
             {
                 AppLog.Error("checkin", $"{name} 异常: {ex.Message}");
+                if (AccountHealth.OnFailure(acc, DateTime.Today, getConfig().CheckinFailSuspendThreshold))
+                    AppLog.Info("checkin", $"{name}: 连续失败 {acc.FailStreak} 次，今日暂停签到（次日自动恢复）");
+                saveConfig();
                 results.Add(new CheckinResult(acc.Id, name, false, 0, "网络或接口异常"));
             }
         }
