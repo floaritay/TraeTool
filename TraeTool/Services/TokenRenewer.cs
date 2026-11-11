@@ -23,9 +23,6 @@ public static class TokenRenewer
         if (!string.IsNullOrEmpty(accountId)) Verified.TryRemove(accountId, out _);
     }
 
-    /// <summary>清空全部校验缓存（手动刷新凭据状态、测试复位用）。</summary>
-    public static void ResetVerified() => Verified.Clear();
-
     /// <summary>
     /// 1. Token 且校验仍在有效期内 → 直接可用（不再探测）；
     /// 2. 否则走 status 探测，code==0 即可用并记入缓存；

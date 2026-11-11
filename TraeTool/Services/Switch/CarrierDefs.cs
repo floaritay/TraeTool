@@ -60,8 +60,8 @@ public static class CarrierDefs
 
     /// <summary>
     /// 探测客户端 exe，顺序：① 手动 override（文件存在）② 运行中 "Trae CN" 进程主模块
-    /// （最可靠——本机安装路径不受安装器版本影响）③ 候选路径清单（含本机
-    /// <c>D:\Trae\Trae CN</c> 等布局）④ null。
+    /// （最可靠——本机安装路径不受安装器版本影响）③ 候选路径清单（含
+    /// <c><drive>\Trae\Trae CN</c> 等常见布局）④ null。
     /// </summary>
     public static string? TryDetectExe(string? overridePath)
     {

@@ -43,12 +43,6 @@ public static partial class ModelCatalog
     private static DateTime _syncAt = DateTime.MinValue;
     private static bool _officialLive;
 
-    /// <summary>当前官网层结果（缓存；未同步过则等于内置参考）。</summary>
-    public static IReadOnlyList<string> OfficialCurrent
-    {
-        get { lock (Gate) return _official; }
-    }
-
     /// <summary>当前官网层条目（带元数据；未同步过则等于内置条目）。</summary>
     public static IReadOnlyList<ModelEntry> CurrentEntries
     {
@@ -61,7 +55,7 @@ public static partial class ModelCatalog
         get { lock (Gate) return _officialLive ? _syncAt : null; }
     }
 
-    /// <summary>清空官网同步缓存，下一次 <see cref="GetOfficialAsync"/> 重新拉取（更新按钮与测试用）。</summary>
+    /// <summary>清空官网同步缓存，下一次 <see cref="GetOfficialEntriesAsync"/> 重新拉取（更新按钮与测试用）。</summary>
     public static void Reset()
     {
         lock (Gate)
@@ -93,11 +87,6 @@ public static partial class ModelCatalog
             official, KnownIds.Length, ParseSeen(cfg.GatewaySeenModels).Count,
             overrides.Count(o => o.Hidden && !string.IsNullOrWhiteSpace(o.Id)), live, synced);
     }
-
-    /// <summary>官网同步（第 2 层）：带缓存；失败回退内置。返回 id 列表。</summary>
-    public static async Task<IReadOnlyList<string>> GetOfficialAsync(AppSettings cfg, Account? account,
-        HttpClient? http = null, CancellationToken ct = default)
-        => (await GetOfficialEntriesAsync(cfg, account, http, ct)).Select(e => e.Id).ToList();
 
     /// <summary>官网同步（第 2 层）：带缓存的条目版（含展示名/倍率/图片/档位）。</summary>
     public static async Task<IReadOnlyList<ModelEntry>> GetOfficialEntriesAsync(AppSettings cfg, Account? account,

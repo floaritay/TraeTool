@@ -8,16 +8,6 @@ public static class AutoStartManager
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "TraeTool";
 
-    public static bool IsEnabled()
-    {
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-            return key?.GetValue(ValueName) != null;
-        }
-        catch { return false; }
-    }
-
     public static void SetEnabled(bool enabled)
     {
         try

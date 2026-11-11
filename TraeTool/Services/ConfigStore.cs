@@ -28,7 +28,7 @@ public static class ConfigStore
     [
         ("Token", a => a.Token, (a, v) => a.Token = v),
         ("Session", a => a.Session, (a, v) => a.Session = v),
-        ("DeviceId", a => a.DeviceId, (a, v) => a.DeviceId = v),
+        ("DeviceId", a => a.DeviceId, (a, v) => a.DeviceId = v ?? ""),
     ];
 
     private static string BackupPath => Paths.ConfigFile + ".bak";
@@ -178,8 +178,8 @@ public static class ConfigStore
         catch { return null; }
     }
 
-    /// <summary>加载后解密敏感字段回内存。解密失败（换机/换用户）时保留原值——
-    /// 原值若本身就是旧版明文则平滑迁移，若是他人密文则等价于损坏，后续换新会覆盖。</summary>
+    /// <summary>加载后解密敏感字段回内存。解密失败（换机/换用户）时保留原值：
+    /// 明文原值可直接使用，他人密文等价于损坏，后续换新会覆盖。</summary>
     private static void UnsealSecrets(AppSettings cfg)
     {
         foreach (var acc in cfg.Accounts)
@@ -219,8 +219,8 @@ public static class ConfigStore
     }
 
     /// <summary>
-    /// 模型列表第 1 层的形态迁移与清洗：旧版的模型名清单（<see cref="AppSettings.GatewayManualModels"/>）
-    /// 转成覆盖项后清空原字段；id 为空的覆盖项（编辑中的残渣）丢弃。
+    /// 模型列表第 1 层的形态迁移与清洗：<see cref="AppSettings.GatewayManualModels"/>（逗号/换行
+    /// 分隔的模型名清单）转成覆盖项后置空；id 为空的覆盖项（编辑中的残渣）丢弃。
     /// </summary>
     private static void MigrateManualModels(AppSettings cfg)
     {

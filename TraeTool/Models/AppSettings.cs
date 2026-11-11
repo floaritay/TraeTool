@@ -86,7 +86,7 @@ public class AppSettings
     /// </summary>
     public List<ModelOverride> ModelOverrides { get; set; } = new();
 
-    /// <summary>旧版第 1 层（逗号/换行分隔的模型名）；读取时迁移进 <see cref="ModelOverrides"/> 后清空。</summary>
+    /// <summary>逗号/换行分隔的模型名清单（迁移用字段）：读取时并入 <see cref="ModelOverrides"/> 后置空。</summary>
     public string? GatewayManualModels { get; set; }
 
     /// <summary>模型列表第 4 层：本网关收到过的请求模型名（自动累积，换行分隔）。</summary>

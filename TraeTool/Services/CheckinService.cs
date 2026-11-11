@@ -64,8 +64,8 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
             return new CheckinResult(account.Id, displayName, true, 0, "今日已签");
         }
 
-        // —— claim：9074 换号重试（镜像 checkin.py：随机 0.8~1.5s 间隔、多次尝试——
-        //    0 秒间隔立即重发会撞上服务端同一冷却窗，实测只会连吃 9074）——
+        // —— claim：9074 换号重试（随机 0.8~1.5s 间隔、多次尝试——
+        //    0 秒间隔立即重发会撞上服务端同一冷却窗，只会连吃 9074）——
         const int MaxAttempts = 3; // 首次 + 2 次换号重试
         var claim = await TraeApiClient.ClaimAsync(token, account.DeviceId);
         if (claim.HttpError != null)

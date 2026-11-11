@@ -30,16 +30,7 @@ public sealed record ChatUpstreamError(string Message, string Type, int Status);
 /// </summary>
 public static class ChatProtocol
 {
-    /// <summary>
-    /// 输出序列化选项：非 ASCII 保持原样（日志与客户端易读）；
-    /// 字符串内的双引号仍由 JSON 规则转义，不影响解析。
-    /// </summary>
-    private static readonly JsonSerializerOptions Out = new()
-    {
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
-
-    private static string Write(object payload) => JsonSerializer.Serialize(payload, Out);
+    private static string Write(object payload) => GatewayJson.Serialize(payload);
     /// <summary>解析 /v1/chat/completions 请求体；非法输入抛 <see cref="ChatRequestException"/>。</summary>
     public static ChatRequest ParseRequest(string json)
     {

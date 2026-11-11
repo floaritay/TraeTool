@@ -85,7 +85,8 @@ public partial class MainViewModel : ObservableObject
                     {
                         AppServices.Config.LastAutoRunDate = null;
                         AppServices.SaveConfig();
-                        AutoCheckin.RollbackTodayGuard();
+                        // 本回调由 AutoCheckin 实例触发，属性在构造末尾已完成赋值
+                        AutoCheckin!.RollbackTodayGuard();
                         AppLog.Info("auto", "全部账号未登录，撤回今日自动触发（登录后将自动补签）");
                         Checkin.StatusMessage = "自动签到待执行：账号登录后将自动补签（本轮零网络请求）";
                     }

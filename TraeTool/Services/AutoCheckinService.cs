@@ -85,9 +85,6 @@ public sealed class AutoCheckinService(Func<AppSettings> getConfig, Func<bool> i
         }
     }
 
-    /// <summary>供设置页保存新时间后复位（如改时间想立即重新评估）。</summary>
-    public void ResetTodayGuard() => _ranDate = DateOnly.MinValue;
-
     /// <summary>
     /// 撤回今日进程内触发守卫（与配置层 LastAutoRunDate 撤回配套）——
     /// 全部账号"未登录"空跑后调用，否则同一次会话里"登录后自动补签"永不兑现。

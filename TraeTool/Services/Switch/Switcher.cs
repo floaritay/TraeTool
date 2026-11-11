@@ -73,7 +73,7 @@ public sealed class Switcher(VaultStore vault)
         catch (Exception ex)
         {
             Say("建立回滚快照失败，中止（live 未改动）: " + ex.Message);
-            TryDeleteDir(rollbackDir);
+            FileSystemUtil.TryDeleteDir(rollbackDir);
             return new SwitchResult(SwitchOutcome.Aborted, "快照失败: " + ex.Message);
         }
 
@@ -91,7 +91,7 @@ public sealed class Switcher(VaultStore vault)
             {
                 await VaultStore.RestoreFromAsync(rollbackDir, log, ct);
                 ClientControl.Launch(exe);
-                TryDeleteDir(rollbackDir);
+                FileSystemUtil.TryDeleteDir(rollbackDir);
             }
             catch (Exception rex)
             {
@@ -135,7 +135,7 @@ public sealed class Switcher(VaultStore vault)
                     AppLog.Error("switch", "回写失败（下次切换该账号可能 401，届时重新建档）: " + ex.Message);
                     Say("回写 storage.json 失败（不影响本次切换）");
                 }
-                TryDeleteDir(rollbackDir);
+                FileSystemUtil.TryDeleteDir(rollbackDir);
                 return new SwitchResult(SwitchOutcome.Active, "切换成功");
 
             case AuthState.RolledBack:
@@ -162,7 +162,7 @@ public sealed class Switcher(VaultStore vault)
                 await ClientControl.KillAllAsync(ct);
             await VaultStore.RestoreFromAsync(rollbackDir, log, ct);
             ClientControl.Launch(exe);
-            TryDeleteDir(rollbackDir);
+            FileSystemUtil.TryDeleteDir(rollbackDir);
             return SwitchOutcome.RolledBack;
         }
         catch (Exception ex)
@@ -171,11 +171,5 @@ public sealed class Switcher(VaultStore vault)
             log?.Report("回滚失败，快照保留于 " + rollbackDir);
             return SwitchOutcome.Failed;
         }
-    }
-
-    private static void TryDeleteDir(string dir)
-    {
-        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
-        catch { /* 残留于 %TEMP% 无害 */ }
     }
 }

@@ -121,8 +121,8 @@ public partial class DashboardViewModel : ObservableObject
 
             int idx = cfg.Accounts.IndexOf(acc) + 1;
             CurrentAccount = $"{acc.DisplayName(idx)} · UID {acc.AccountUid ?? "-"}";
-            MemberText = MemberDetector.TryRefreshAndSave(acc, isActive: acc.Id == cfg.ActiveAccountId)
-                ? MemberHint(acc.IsMember) : MemberHint(acc.IsMember);
+            MemberDetector.TryRefreshAndSave(acc, isActive: acc.Id == cfg.ActiveAccountId);
+            MemberText = MemberHint(acc.IsMember);
             AppServices.SaveConfig();
 
             // 凭证可用则拉最新状态与剩余积分
@@ -345,7 +345,7 @@ public partial class DashboardViewModel : ObservableObject
         BuildPoints();
     }
 
-    // ==================== 图表自适应（原固定 520 Canvas → 按容器宽度重算） ====================
+    // ==================== 图表自适应（按容器宽度重算） ====================
 
     private double[]? _trendValues;
     private double _chartW = ChartWidth;

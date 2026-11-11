@@ -76,20 +76,6 @@ public static class CheckinRecordRepo
         return result;
     }
 
-    /// <summary>本地记录中「今日已签」的账号 Id 集合（批量前快速去重用）。</summary>
-    public static HashSet<string> TodayAccountIds()
-    {
-        var today = DateTime.Now.ToString("yyyy-MM-dd");
-        var set = new HashSet<string>(StringComparer.Ordinal);
-        using var conn = Database.CreateConnection();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT DISTINCT account_id FROM checkin_record WHERE checked_date = $d;";
-        cmd.Parameters.AddWithValue("$d", today);
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read()) set.Add(reader.GetString(0));
-        return set;
-    }
-
     /// <summary>所有签到过的日期集合（日历打点 + 连签计算）。元素为 yyyy-MM-dd 字符串。</summary>
     public static HashSet<string> SignedDates()
     {

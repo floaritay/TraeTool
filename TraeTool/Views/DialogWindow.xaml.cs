@@ -11,7 +11,7 @@ namespace TraeTool.Views;
 public enum DialogKind { Info, Warn, Danger }
 
 /// <summary>
-/// 统一样式对话框（G5）：替代原生 MessageBox，支持图标、后果小字、主/次按钮。
+/// 统一样式对话框：替代原生 MessageBox，支持图标、后果小字、主/次按钮。
 /// </summary>
 public partial class DialogWindow : Window
 {
@@ -84,8 +84,8 @@ public partial class DialogWindow : Window
             }
 
             w.PrimaryButton.Content = primary;
-            if (dangerPrimary)
-                w.PrimaryButton.Style = (Style)Application.Current.FindResource("DangerButton")!;
+            if (dangerPrimary && Application.Current is { } app)
+                w.PrimaryButton.Style = (Style)app.FindResource("DangerButton");
             if (secondary != null)
             {
                 w.SecondaryButton.Content = secondary;

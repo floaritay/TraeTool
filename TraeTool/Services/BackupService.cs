@@ -81,7 +81,7 @@ public static class BackupService
         }
         finally
         {
-            TryDeleteFile(tmpZip);
+            FileSystemUtil.TryDeleteFile(tmpZip);
         }
     }
 
@@ -160,19 +160,19 @@ public static class BackupService
             }
             finally
             {
-                TryDeleteDir(tmp);
+                FileSystemUtil.TryDeleteDir(tmp);
             }
         }
         catch (Exception ex)
         {
             error = ex.Message;
             AppLog.Error("backup", "暂存导入包失败: " + ex);
-            TryDeleteDir(staging);
+            FileSystemUtil.TryDeleteDir(staging);
             return false;
         }
         finally
         {
-            if (decryptedZip != null) TryDeleteFile(decryptedZip);
+            if (decryptedZip != null) FileSystemUtil.TryDeleteFile(decryptedZip);
         }
     }
 
@@ -209,15 +209,4 @@ public static class BackupService
         }
     }
 
-    private static void TryDeleteDir(string dir)
-    {
-        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
-        catch { /* 清理失败无害 */ }
-    }
-
-    private static void TryDeleteFile(string path)
-    {
-        try { if (File.Exists(path)) File.Delete(path); }
-        catch { /* 清理失败无害 */ }
-    }
 }

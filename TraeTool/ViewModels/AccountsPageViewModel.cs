@@ -317,7 +317,7 @@ public partial class AccountsPageViewModel : ObservableObject
         }
     }
 
-    // 账号切换入口已移至「每日签到」页头部下拉框（AppServices.SetActive 仍为唯一写入点）。
+    // 账号切换入口在「每日签到」页头部下拉框（AppServices.SetActive 是唯一写入点）。
 
     /// <summary>删除账号：确认 → 移除配置 → 删 WebView profile；历史记录保留。</summary>
     [RelayCommand]
@@ -404,8 +404,7 @@ public partial class AccountsPageViewModel : ObservableObject
                     if (!string.IsNullOrEmpty(uid)) acc.AccountUid = uid;
                 }
 
-                if (MemberDetector.TryRefreshAndSave(acc, isActive: acc.Id == AppServices.Config.ActiveAccountId))
-                { /* IsMember 已更新 */ }
+                MemberDetector.TryRefreshAndSave(acc, isActive: acc.Id == AppServices.Config.ActiveAccountId);
 
                 // 学生认证（student_verification，独立接口；失败保持原值）
                 if (!string.IsNullOrEmpty(acc.Token))

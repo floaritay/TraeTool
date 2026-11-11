@@ -16,13 +16,7 @@ public static class ResponsesProtocol
     private static readonly string[] UnsupportedFields =
         ["tools", "tool_choice", "previous_response_id", "include", "truncation"];
 
-    /// <summary>输出序列化选项：非 ASCII 保持原样（与 Chat 协议一致，日志与客户端易读）。</summary>
-    private static readonly JsonSerializerOptions Out = new()
-    {
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
-
-    private static string Js(object payload) => JsonSerializer.Serialize(payload, Out);
+    private static string Js(object payload) => GatewayJson.Serialize(payload);
 
     /// <summary>解析 /v1/responses 请求体；非法输入抛 <see cref="ChatRequestException"/>。</summary>
     public static ChatRequest ParseRequest(string json)

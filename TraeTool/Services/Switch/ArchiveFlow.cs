@@ -7,7 +7,7 @@ using Application = System.Windows.Application; // 与 WinForms Application 冲�
 namespace TraeTool.Services.Switch;
 
 /// <summary>
-/// 建档向导——「添加账号后」与「首次切换无档案」两处共用同一流程（G4 五步向导窗）。
+/// 建档向导——「添加账号后」与「首次切换无档案」两处共用同一流程（五步向导窗）。
 /// 硬边界：网页登录拿到的 JWT/Session 无法转成客户端登录态（客户端认证是自己的加密 blob），
 /// 所以「在 Trae 客户端里登录该账号一次」是每个账号不可省的物理步骤；本向导把它包成
 /// 五步引导（确认 → 打开客户端 → 关闭客户端 → 交叉比对 → 备份建档）。
@@ -154,7 +154,7 @@ public static class ArchiveFlow
 
             if (worstOther != null)
             {
-                // ≥0.85 警告：必须勾选确认才能继续（原型规范 08 交互说明）
+                // ≥0.85 警告：必须勾选确认才能继续
                 c.SetBody("可能建错了档",
                     $"即将保存的客户端登录态与账号「{worstOther}」的已有档案相似度 {worstScore:P0}——" +
                     $"客户端里登录的很可能不是「{displayName}」，继续会存错档案！",

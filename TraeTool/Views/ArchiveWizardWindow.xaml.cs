@@ -10,7 +10,7 @@ using FontFamily = System.Windows.Media.FontFamily;
 namespace TraeTool.Views;
 
 /// <summary>
-/// 建档向导窗口（G4）：五步指示器（每步带小字说明）+ 分步正文 + 警告/勾选/进度 + 主/次按钮。
+/// 建档向导窗口：五步指示器（每步带小字说明）+ 分步正文 + 警告/勾选/进度 + 主/次按钮。
 /// 业务流程由 <see cref="WizardController"/> 驱动（ArchiveFlow 持有），本窗口只负责展示与用户动作回传。
 /// </summary>
 public partial class ArchiveWizardWindow : Window
@@ -232,8 +232,8 @@ public partial class ArchiveWizardWindow : Window
             }
             catch (Exception ex)
             {
-                // 构造/XAML 级失败（历史事故：步骤样式挂在子元素上、窗口级 FindResource 抛
-                // ResourceReferenceKeyNotFoundException，又被 RelayCommand 静默吞掉 → 点建档无反应）
+                // 构造/XAML 级失败也要落日志：RelayCommand 会静默吞掉异常，
+                // 不记日志时表现为「点建档无反应」
                 AppLog.Error("wizard", "向导启动失败: " + ex);
                 throw;
             }

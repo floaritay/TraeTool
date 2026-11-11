@@ -41,7 +41,7 @@ public partial class UsagePageViewModel : ObservableObject
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private bool _autoLoaded;
 
-    // 汇总带（三格 + 口径；「折合」已按需求移除——cost_money 语义未核实不展示）
+    // 汇总带（三格 + 口径；cost_money 语义未核实，不做折合展示）
     [ObservableProperty] private string _sumSessions = "—";
     [ObservableProperty] private string _sumCredits = "—";
     [ObservableProperty] private string _sumTokens = "—";

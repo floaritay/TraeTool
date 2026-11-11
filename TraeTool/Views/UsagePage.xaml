@@ -55,7 +55,7 @@
             <!-- P5-3 汇总带 -->
             <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1" CornerRadius="14" Padding="6,0" Margin="0,0,0,12">
-                <!-- 「折合（≈元）」已按需求移除：cost_money 字段语义未核实，不展示不确定的换算 -->
+                <!-- 不做「折合（≈元）」展示：cost_money 字段语义未核实 -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>

@@ -17,17 +17,6 @@ public sealed class ApiResponse
     public static ApiResponse Fail(string httpError) => new() { Ok = false, HttpError = httpError };
 }
 
-/// <summary>签到状态（/checkin_credits/status、claim 也复用此结构）。</summary>
-public sealed class CheckinStatus
-{
-    public bool enable { get; set; }
-    public bool checked_in { get; set; }
-    public double credits { get; set; }
-    public double extra_credits { get; set; }
-    public int code { get; set; }
-    public string? message { get; set; }
-}
-
 /// <summary>Trae 云 API 客户端。无账号态：token/deviceId 全部走方法参数。
 /// 请求头采用最小头集；<see cref="UseFallbackHeaders"/> 打开后
 /// 附加官方客户端观察头（仅当最小头被服务端拒绝时排查用，默认关闭）。</summary>

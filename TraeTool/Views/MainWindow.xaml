@@ -55,7 +55,7 @@
                     </Button>
                 </StackPanel>
 
-                <!-- 全局忙碌药丸（G6） -->
+                <!-- 全局忙碌药丸 -->
                 <Border DockPanel.Dock="Right" Style="{StaticResource Chip}" Margin="0,0,10,0"
                         Background="{DynamicResource PrimarySoftBrush}"
                         BorderBrush="{DynamicResource PrimaryLineBrush}"
@@ -109,7 +109,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- G1 左侧导航 -->
+            <!-- 左侧导航 -->
             <Border Grid.Column="0" Background="{DynamicResource NavBrush}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Margin="0,20,0,14">

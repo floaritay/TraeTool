@@ -62,7 +62,7 @@ public sealed class ImageToBrushConverter : IValueConverter
 }
 
 /// <summary>
-/// 头像色相（double 0~359）→ HSL(46%, 44%) 纯色刷（与 UI 原型 .avatar 同配比）。
+/// 头像色相（double 0~359）→ HSL(46%, 44%) 纯色刷。
 /// </summary>
 public sealed class HueToBrushConverter : IValueConverter
 {
