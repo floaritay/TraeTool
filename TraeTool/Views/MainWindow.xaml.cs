@@ -176,6 +176,15 @@ public partial class MainWindow : Window
             Hide();
             return;
         }
+        // 真正退出前若切换在执行：确认，取消则留在前台（ForceExit 路径不重复询问）
+        if (AppServices.SwitchBusy && !AppServices.ForceExit &&
+            !DialogWindow.Show("退出程序",
+                "客户端切换正在执行，现在退出可能造成数据损坏。仍要退出？",
+                DialogKind.Warn, primary: "仍要退出", secondary: "取消", dangerPrimary: true))
+        {
+            e.Cancel = true;
+            return;
+        }
         base.OnClosing(e);
     }
 }

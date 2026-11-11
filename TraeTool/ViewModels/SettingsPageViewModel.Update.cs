@@ -69,6 +69,11 @@ public partial class SettingsPageViewModel
     private async Task InstallUpdateAsync()
     {
         if (_pendingUpdate == null || Busy) return;
+        if (AppServices.SwitchBusy)
+        {
+            UpdateStatus = "客户端切换正在执行，稍后再安装";
+            return;
+        }
         Busy = true;
         try
         {
@@ -76,6 +81,12 @@ public partial class SettingsPageViewModel
             if (error != null || staging == null)
             {
                 UpdateStatus = error ?? "更新失败";
+                return;
+            }
+            // 下载期间切换可能已开始：安装会杀进程，必须重查
+            if (AppServices.SwitchBusy)
+            {
+                UpdateStatus = "客户端切换正在执行，稍后再安装";
                 return;
             }
             UpdateStatus = "已下载，重启安装中…";

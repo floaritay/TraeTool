@@ -51,6 +51,12 @@ public partial class SettingsPageViewModel
     private void ImportBackup()
     {
         if (Busy) return;
+        // 切换执行中直接退出会中断操作、损坏档案：导入要重启，先挡住
+        if (AppServices.SwitchBusy)
+        {
+            StatusMessage = "客户端切换正在执行，稍后再导入";
+            return;
+        }
         var dlg = new WpfOpenFileDialog { Filter = "TraeTool 备份 (*.zip)|*.zip" };
         if (dlg.ShowDialog() != true) return;
 
@@ -81,6 +87,13 @@ public partial class SettingsPageViewModel
             try { Directory.Delete(Path.Combine(Paths.Root, "import_staging"), recursive: true); }
             catch { /* 暂存清理失败无害 */ }
             StatusMessage = "已取消导入（暂存已清除）";
+            return;
+        }
+
+        // 确认对话框期间档案保鲜可能已开始：暂存保留，下次启动自然生效，不在此刻杀进程
+        if (AppServices.SwitchBusy)
+        {
+            StatusMessage = "切换执行中，导入已暂存，将在下次启动生效";
             return;
         }
 

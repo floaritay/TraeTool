@@ -137,6 +137,12 @@ public partial class App : System.Windows.Application
         });
         _tray.ExitRequested += () => System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
+            // 切换执行中直接退出会损坏档案：先确认，取消则维持运行
+            if (AppServices.SwitchBusy &&
+                !Views.DialogWindow.Show("退出程序",
+                    "客户端切换正在执行，现在退出可能造成数据损坏。仍要退出？",
+                    Views.DialogKind.Warn, primary: "仍要退出", secondary: "取消", dangerPrimary: true))
+                return;
             _mainViewModel.AutoCheckin.Stop();
             AppServices.ForceExit = true; // 否则 CloseToTray 时 OnClosing 会拦截 Shutdown
             AppServices.SaveConfig();

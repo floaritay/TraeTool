@@ -74,28 +74,38 @@ public static class UpdateService
                 version = (root.TryGetProperty("tag_name", out var t) ? t.GetString() : "")?.TrimStart('v', 'V') ?? "";
                 if (root.TryGetProperty("body", out var b)) notes = b.GetString();
                 url = null;
-                string? shaAsset = null;
+                var zips = new List<(string Name, string Url, string? Digest)>();
+                var shaAssets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var a in assets.EnumerateArray())
                     {
                         var name = a.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                        var assetUrl = a.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
                         if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                         {
-                            url = a.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
                             // GitHub 资产摘要（形如 "sha256:<hex>"）
+                            string? digest = null;
                             if (a.TryGetProperty("digest", out var d) && d.ValueKind == JsonValueKind.String)
-                                sha256 = NormalizeHash(d.GetString());
+                                digest = NormalizeHash(d.GetString());
+                            if (assetUrl != null) zips.Add((name, assetUrl, digest));
                         }
-                        else if (name.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase))
+                        else if (name.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase) && assetUrl != null)
                         {
-                            shaAsset = a.TryGetProperty("browser_download_url", out var su) ? su.GetString() : null;
+                            // 同名 .sha256 资产，键为对应 zip 的文件名
+                            shaAssets[name[..^".sha256".Length]] = assetUrl;
                         }
                     }
                 }
+                // 多个 zip（普通包 + 单文件包）时选第一个带校验和的：
+                // 下载地址与校验和必须来自同一个包，混用两个包的摘要会永久校验失败
+                var chosen = zips.FirstOrDefault(z => z.Digest != null || shaAssets.ContainsKey(z.Name));
+                if (chosen.Url == null) chosen = zips.FirstOrDefault();
+                url = chosen.Url;
+                sha256 = chosen.Digest;
                 if (string.IsNullOrEmpty(url))
                     return new UpdateCheck(null, false, "更新源里没有 .zip 安装包资产");
-                if (sha256 == null && !string.IsNullOrEmpty(shaAsset))
+                if (sha256 == null && shaAssets.TryGetValue(chosen.Name, out var shaAsset))
                 {
                     try { sha256 = NormalizeHash(await Http.GetStringAsync(shaAsset)); }
                     catch (Exception ex) { AppLog.Error("update", "读取 .sha256 资产失败: " + ex.Message); }
@@ -199,6 +209,31 @@ public static class UpdateService
         => c is >= '0' and <= '9' or >= 'a' and <= 'f';
 
     /// <summary>
+    /// 写入「等本进程退出」的 bat 段（含 :wait/:run 标签，ASCII）：
+    /// 按 PID + 映像名探测，PID 被其他进程复用时不误判为本进程仍存活；
+    /// 命中计数到 300 次（约 5 分钟）后强制继续，避免无限等待。
+    /// 映像名含 bat 无法安全书写的字符时退化为仅按 PID 探测。
+    /// </summary>
+    private static void AppendWaitForExit(StringBuilder sb, int pid, string exePath)
+    {
+        var exeName = Path.GetFileName(exePath);
+        var canMatchImage = exeName.Length > 0 &&
+            exeName.All(c => char.IsLetterOrDigit(c) || " ._-()[]".IndexOf(c) >= 0);
+        sb.AppendLine(":wait");
+        if (canMatchImage)
+            sb.AppendLine(
+                $"tasklist /FI \"PID eq {pid}\" /FI \"IMAGENAME eq {exeName}\" 2>nul | find /I \"{exeName}\" >nul");
+        else
+            sb.AppendLine($"tasklist /FI \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul");
+        sb.AppendLine("if errorlevel 1 goto run");
+        sb.AppendLine("set /a n+=1");
+        sb.AppendLine("if %n% geq 300 goto run");
+        sb.AppendLine("ping -n 2 127.0.0.1 >nul");
+        sb.AppendLine("goto wait");
+        sb.AppendLine(":run");
+    }
+
+    /// <summary>
     /// 写等待脚本并重启安装：bat 等本进程退出 → xcopy 覆盖 → 启动新版本 → 自删。
     /// 必须经 AppServices.ForceExit 退出（CloseToTray 开着时 OnClosing 会拦截普通 Close）。
     /// </summary>
@@ -212,9 +247,7 @@ public static class UpdateService
         var sb = new StringBuilder();
         sb.AppendLine("@echo off");
         sb.AppendLine("setlocal");
-        sb.AppendLine(":wait");
-        sb.AppendLine($"tasklist /FI \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul");
-        sb.AppendLine("if not errorlevel 1 (ping -n 2 127.0.0.1 >nul & goto wait)");
+        AppendWaitForExit(sb, pid, exe);
         sb.AppendLine($"set \"STG={stagingDir}\"");
         sb.AppendLine($"set \"APP={appDir}\"");
         sb.AppendLine("xcopy /s /e /y \"%STG%\\*\" \"%APP%\\\" >nul");
@@ -243,9 +276,7 @@ public static class UpdateService
         var sb = new StringBuilder();
         sb.AppendLine("@echo off");
         sb.AppendLine("setlocal");
-        sb.AppendLine(":wait");
-        sb.AppendLine($"tasklist /FI \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul");
-        sb.AppendLine("if not errorlevel 1 (ping -n 2 127.0.0.1 >nul & goto wait)");
+        AppendWaitForExit(sb, pid, exe);
         sb.AppendLine($"start \"\" \"{exe}\"");
         sb.AppendLine("endlocal");
         sb.AppendLine("del \"%~f0\"");
