@@ -39,6 +39,13 @@ public static class ConfigStore
     /// </summary>
     private static readonly object SaveGate = new();
 
+    /// <summary>
+    /// 配置集合（Accounts / ModelOverrides）的结构变更与跨线程读取共用：
+    /// UI 线程增删时网关线程可能正在枚举，两边都经此锁才能避免
+    /// 「Collection was modified」异常。锁序只允许 SaveGate → SyncRoot。
+    /// </summary>
+    public static readonly object SyncRoot = new();
+
     public static AppSettings Load()
     {
         // 主文件损坏（如写盘中被杀导致截断）时回退到上一次 .bak——
@@ -78,10 +85,12 @@ public static class ConfigStore
         try
         {
             Directory.CreateDirectory(Paths.Root);
-            var json = JsonSerializer.Serialize(Seal(cfg), JsonOpts);
             var tmp = Paths.ConfigFile + ".tmp";
             lock (SaveGate)
             {
+                // 序列化必须在锁内：先在锁外快照再排队写入会让旧快照压掉新快照（丢更新）
+                string json;
+                lock (SyncRoot) json = JsonSerializer.Serialize(Seal(cfg), JsonOpts);
                 // 覆盖前留一份 .bak（Load 可在主文件损坏时回退）
                 if (File.Exists(Paths.ConfigFile))
                     File.Copy(Paths.ConfigFile, BackupPath, overwrite: true);
@@ -89,7 +98,11 @@ public static class ConfigStore
                 File.Move(tmp, Paths.ConfigFile, overwrite: true);
             }
         }
-        catch { /* 保存失败（含 DPAPI 异常）保留磁盘旧文件，下次启动仍可读 */ }
+        catch (Exception ex)
+        {
+            // 保存失败（含 DPAPI 异常）保留磁盘旧文件，下次启动仍可读；记日志便于排查「改了没存上」
+            AppLog.Error("config", "保存失败: " + ex.Message);
+        }
     }
 
     /// <summary>生成敏感字段已 DPAPI 加密的深拷贝。</summary>

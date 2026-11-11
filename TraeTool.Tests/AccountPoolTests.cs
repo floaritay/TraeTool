@@ -72,6 +72,20 @@ public class AccountPoolTests
     }
 
     [Fact]
+    public void Auth_cooldown_clears_when_token_changes()
+    {
+        var a = New("a");
+        var cfg = Config(a);
+        var pool = new AccountPool();
+
+        pool.MarkFail(a, Now, AccountPool.AuthCooldown);
+        Assert.NotEqual(a, pool.Next(cfg, Now)); // 冷却中被跳过
+
+        a.Token = "renewed"; // 重新登录/续期换发新令牌 → 冷却绑定旧令牌，自动解除
+        Assert.Equal(a, pool.Next(cfg, Now));
+    }
+
+    [Fact]
     public void Fail_without_cooldown_keeps_account_selectable()
     {
         var a = New("a");

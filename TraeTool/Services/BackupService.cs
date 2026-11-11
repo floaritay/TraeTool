@@ -178,7 +178,8 @@ public static class BackupService
 
     /// <summary>
     /// 启动期应用暂存（必须在 Database.Open 与 ConfigStore.Load 之前调用）：
-    /// 把 import_staging 下的文件覆盖到应用目录，旧配置留 .bak，旧库留 .preimport，然后删除 staging。
+    /// 把 import_staging 下的文件逐个移入应用目录——移走即标记已应用，中断后重跑只处理剩余文件；
+    /// config.json 最后覆盖，覆盖前旧配置留 .bak，其余文件留 .preimport。全部成功后删除 staging。
     /// </summary>
     public static void ApplyImportStaging()
     {
@@ -186,7 +187,12 @@ public static class BackupService
         if (!Directory.Exists(staging)) return;
         try
         {
-            foreach (var src in Directory.GetFiles(staging, "*", SearchOption.AllDirectories))
+            // config.json 最后处理：数据文件全部就位后才替换配置（.bak 只在首次应用时生成）
+            var files = Directory.GetFiles(staging, "*", SearchOption.AllDirectories)
+                .OrderBy(f => string.Equals(Path.GetRelativePath(staging, f), "config.json",
+                    StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                .ToList();
+            foreach (var src in files)
             {
                 var rel = Path.GetRelativePath(staging, src);
                 var dest = Path.Combine(Paths.Root, rel);
@@ -198,7 +204,7 @@ public static class BackupService
                         File.Copy(dest, dest + ".preimport", overwrite: true);
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                File.Copy(src, dest, overwrite: true);
+                File.Move(src, dest, overwrite: true);
             }
             Directory.Delete(staging, recursive: true);
             AppLog.Info("backup", "导入备份已应用：配置与数据已覆盖（重启完成）");

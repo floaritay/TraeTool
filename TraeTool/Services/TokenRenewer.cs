@@ -14,7 +14,7 @@ public static class TokenRenewer
     private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset Until)> Verified =
         new(StringComparer.Ordinal);
 
-    /// <summary>校验结果的复用时长；到期后重新探测。</summary>
+    /// <summary>校验结果的复用时长（且不超过令牌 JWT 的 exp）；到期后重新探测。</summary>
     public static TimeSpan VerifyTtl { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>作废某账号的校验缓存：上游以凭据被拒回应时调用，使下次调用重新探测/续期。</summary>
@@ -85,6 +85,11 @@ public static class TokenRenewer
     private static void MarkVerified(Account account)
     {
         if (string.IsNullOrEmpty(account.Id) || string.IsNullOrEmpty(account.Token)) return;
-        Verified[account.Id] = (account.Token, DateTimeOffset.Now + VerifyTtl);
+        var until = DateTimeOffset.Now + VerifyTtl;
+        // 缓存截止不晚于令牌自身 exp：校验窗口不能盖过令牌的有效期，
+        // 否则令牌过期后缓存仍判「新鲜」，续期与探测都被跳过
+        if (JwtHelper.TryGetExpiry(account.Token) is { } exp && new DateTimeOffset(exp) < until)
+            until = new DateTimeOffset(exp);
+        Verified[account.Id] = (account.Token, until);
     }
 }
