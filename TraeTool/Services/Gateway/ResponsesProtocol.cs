@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>
 /// OpenAI Responses API（/v1/responses）：请求解析与响应/SSE 构造。

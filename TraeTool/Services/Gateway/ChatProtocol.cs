@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>解析后的对话请求。</summary>
 public sealed record ChatRequest(

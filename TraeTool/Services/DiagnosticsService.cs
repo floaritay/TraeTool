@@ -3,6 +3,7 @@ using System.Net.Http;
 using TraeTool.Models;
 using TraeTool.Services.Switch;
 
+using TraeTool.Services.Gateway;
 namespace TraeTool.Services;
 
 /// <summary>一项自检结果：Status = ok / warn / fail。</summary>

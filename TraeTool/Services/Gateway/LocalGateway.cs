@@ -7,7 +7,7 @@ using System.Text.Json;
 using TraeTool.Models;
 using TraeTool.ViewModels;
 
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>
 /// 本机管理网关：只监听 127.0.0.1 的 HTTP，供本机脚本/面板读取账号状态与触发批量签到。

@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>
 /// Anthropic Messages 协议（/v1/messages）：请求解析与响应/SSE 构造。

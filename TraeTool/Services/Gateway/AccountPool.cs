@@ -1,6 +1,6 @@
 using TraeTool.Models;
 
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>
 /// 账号池：在已登录、启用、未暂停的账号间轮流取号，失败的账号先冷却再换下一个。

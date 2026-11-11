@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using TraeTool.Models;
 
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>上游调用结果（非流式：把整条流拼成一次回答）。</summary>
 public sealed record UpstreamResult(ChatCompletion? Completion, ChatUpstreamError? Error)

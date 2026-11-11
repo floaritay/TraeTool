@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using TraeTool.Models;
 using TraeTool.Services;
+using TraeTool.Services.Gateway;
 using Xunit;
 
 namespace TraeTool.Tests;

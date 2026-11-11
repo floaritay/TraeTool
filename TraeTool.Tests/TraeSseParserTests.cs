@@ -1,4 +1,5 @@
 using TraeTool.Services;
+using TraeTool.Services.Gateway;
 using Xunit;
 
 namespace TraeTool.Tests;

@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TraeTool.Models;
 using TraeTool.Services;
+using TraeTool.Services.Gateway;
 using TraeTool.Services.Switch;
 using TraeTool.Views;
 

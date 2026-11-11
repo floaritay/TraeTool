@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using TraeTool.Models;
 using TraeTool.Services;
+using TraeTool.Services.Gateway;
 using Xunit;
 
 namespace TraeTool.Tests;

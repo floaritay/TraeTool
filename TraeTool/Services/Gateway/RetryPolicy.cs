@@ -1,4 +1,4 @@
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>上游失败后的处置动作。</summary>
 public enum RetryAction

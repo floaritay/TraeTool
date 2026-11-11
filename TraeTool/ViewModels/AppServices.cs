@@ -1,5 +1,6 @@
 using TraeTool.Models;
 using TraeTool.Services;
+using TraeTool.Services.Gateway;
 
 namespace TraeTool.ViewModels;
 

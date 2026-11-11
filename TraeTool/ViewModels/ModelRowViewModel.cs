@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using TraeTool.Services;
+using TraeTool.Services.Gateway;
 
 namespace TraeTool.ViewModels;
 

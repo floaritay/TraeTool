@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using TraeTool.Models;
 
-namespace TraeTool.Services;
+namespace TraeTool.Services.Gateway;
 
 /// <summary>模型列表的四层来源与各自贡献数（用于设置页状态行）。</summary>
 public sealed record ModelSources(
