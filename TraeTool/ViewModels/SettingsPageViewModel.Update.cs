@@ -91,7 +91,12 @@ public partial class SettingsPageViewModel
             }
             UpdateStatus = "已下载，重启安装中…";
             AppLog.Info("update", "staging ready: " + staging);
-            UpdateService.ApplyAndRestart(staging); // 不会再返回
+            if (!UpdateService.ApplyAndRestart(staging)) // 成功时不会再返回
+            {
+                UpdateStatus = "安装目录不可写（程序可能装在 Program Files）：请以管理员身份运行本程序后重试，"
+                             + "或改用便携版目录。";
+                AppLog.Error("update", "安装目录不可写，已取消安装");
+            }
         }
         finally
         {

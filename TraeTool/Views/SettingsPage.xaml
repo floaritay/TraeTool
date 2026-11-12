@@ -287,7 +287,7 @@
                     </DockPanel>
                     <TextBlock FontSize="11" Foreground="{DynamicResource SubBrush}" TextWrapping="Wrap"
                                Margin="0,0,0,10"
-                               Text="导出为 zip；配置内凭据是 DPAPI 密文，默认只能在本机同一 Windows 账户下恢复。勾选口令加密后整体加密封装，可在其他机器/账户用该口令恢复。导入会覆盖当前数据，重启后生效。"/>
+                               Text="导出为 zip：配置(含凭据密文) + 签到库 + 用量缓存。不含客户端登录态档案（vault）——那部分需在「客户端切换」页按账号重新建档。配置内凭据是 DPAPI 密文，默认只能在本机同一 Windows 账户下恢复；勾选口令加密后整体加密封装，可在其他机器/账户用该口令恢复。导入会覆盖当前数据，重启后生效。"/>
 
                     <CheckBox Style="{StaticResource Check}" IsChecked="{Binding EncryptBackup}"
                               Margin="0,0,0,10">

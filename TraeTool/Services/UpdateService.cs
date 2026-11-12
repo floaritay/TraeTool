@@ -21,8 +21,8 @@ public sealed record UpdateCheck(UpdateInfo? Update, bool UpToDate, string? Erro
 /// 自动更新（更新源可配置）：
 ///  - GitHub Releases API（…/repos/owner/repo/releases/latest，取 tag_name + .zip 资产）
 ///  - 普通 version.json：{"version":"1.2.0","url":"https://…/TraeTool-1.2.0.zip","sha256":"…"}
-/// 校验：更新源提供 SHA256 时（GitHub 资产 digest / 同名 .sha256 资产 / version.json 字段）
-///       下载后必须匹配，不匹配拒绝安装；未提供则记录日志后继续。
+/// 校验：更新源必须提供 SHA256（GitHub 资产 digest / 同名 .sha256 资产 / version.json 字段），
+///       下载后比对不通过即拒绝安装；缺失校验和同样拒绝安装。
 /// 安装 = 下载解压到暂存区 → 写一个等待本进程退出的 bat（xcopy 覆盖后重启）→ 退出。
 /// </summary>
 public static class UpdateService
@@ -150,21 +150,20 @@ public static class UpdateService
             var bytes = await Http.GetByteArrayAsync(info.PackageUrl);
             if (bytes.Length < 1024) return (null, "更新包异常（过小）");
 
-            if (!string.IsNullOrEmpty(info.Sha256))
+            if (string.IsNullOrEmpty(info.Sha256))
             {
-                progress?.Report("校验更新包完整性…");
-                var actual = Sha256Hex(bytes);
-                if (!string.Equals(actual, info.Sha256, StringComparison.OrdinalIgnoreCase))
-                {
-                    AppLog.Error("update", $"更新包 SHA256 不匹配：期望 {info.Sha256}，实际 {actual}");
-                    return (null, "更新包完整性校验失败（SHA256 不匹配），已拒绝安装");
-                }
-                AppLog.Info("update", "更新包 SHA256 校验通过");
+                AppLog.Error("update", "更新源未提供 SHA256，拒绝安装");
+                return (null, "更新源未提供 SHA256 校验和，已拒绝安装（请改用提供校验和的更新源）");
             }
-            else
+
+            progress?.Report("校验更新包完整性…");
+            var actual = Sha256Hex(bytes);
+            if (!string.Equals(actual, info.Sha256, StringComparison.OrdinalIgnoreCase))
             {
-                AppLog.Info("update", "更新源未提供 SHA256，跳过完整性校验");
+                AppLog.Error("update", $"更新包 SHA256 不匹配：期望 {info.Sha256}，实际 {actual}");
+                return (null, "更新包完整性校验失败（SHA256 不匹配），已拒绝安装");
             }
+            AppLog.Info("update", "更新包 SHA256 校验通过");
 
             await File.WriteAllBytesAsync(zip, bytes);
 
@@ -236,11 +235,18 @@ public static class UpdateService
     /// <summary>
     /// 写等待脚本并重启安装：bat 等本进程退出 → xcopy 覆盖 → 启动新版本 → 自删。
     /// 必须经 AppServices.ForceExit 退出（CloseToTray 开着时 OnClosing 会拦截普通 Close）。
+    /// 返回 false = 目标目录不可写（多为装在 Program Files 且未提权），未退出、未安装。
+    /// 覆盖失败时脚本仍拉起旧版本并带 --update-failed，由应用下次启动提示。
     /// </summary>
-    public static void ApplyAndRestart(string stagingDir)
+    public static bool ApplyAndRestart(string stagingDir)
     {
         var exe = Environment.ProcessPath ?? throw new InvalidOperationException("无法定位当前 exe");
         var appDir = Path.GetDirectoryName(exe)!;
+        if (!IsDirectoryWritable(appDir))
+        {
+            AppLog.Error("update", $"目标目录不可写，已取消安装：{appDir}");
+            return false;
+        }
         var pid = Environment.ProcessId;
         var bat = Path.Combine(Path.GetTempPath(), $"traetool_update_{pid}.bat");
 
@@ -251,7 +257,12 @@ public static class UpdateService
         sb.AppendLine($"set \"STG={stagingDir}\"");
         sb.AppendLine($"set \"APP={appDir}\"");
         sb.AppendLine("xcopy /s /e /y \"%STG%\\*\" \"%APP%\\\" >nul");
+        sb.AppendLine("if errorlevel 1 goto installfailed");
         sb.AppendLine($"start \"\" \"{exe}\"");
+        sb.AppendLine("goto installdone");
+        sb.AppendLine(":installfailed");
+        sb.AppendLine($"start \"\" \"{exe}\" --update-failed");
+        sb.AppendLine(":installdone");
         sb.AppendLine("endlocal");
         sb.AppendLine("del \"%~f0\"");
         // bat 必须纯 ASCII（避免 CN locale 下编码损坏）
@@ -261,6 +272,23 @@ public static class UpdateService
         ViewModels.AppServices.ForceExit = true;
         Process.Start(new ProcessStartInfo(bat) { UseShellExecute = true });
         System.Windows.Application.Current?.Shutdown();
+        return true;
+    }
+
+    /// <summary>目标目录是否可写（在目录内试建后删一个探针文件）。</summary>
+    private static bool IsDirectoryWritable(string dir)
+    {
+        try
+        {
+            var probe = Path.Combine(dir, ".traetool_write_probe");
+            using (new FileStream(probe, FileMode.Create, FileAccess.Write, FileShare.None)) { }
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

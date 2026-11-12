@@ -147,14 +147,18 @@ public static class BackupService
                 }
 
                 Directory.CreateDirectory(staging);
-                // 平移进 staging（保留相对结构：config.json / data/...）
+                // 平移进 staging（保留相对结构：config.json / data/...）；白名单外的条目丢弃
+                int skipped = 0;
                 foreach (var entry in Directory.GetFiles(tmp, "*", SearchOption.AllDirectories))
                 {
                     var rel = Path.GetRelativePath(tmp, entry);
+                    if (!IsImportAllowed(rel)) { skipped++; continue; }
                     var dest = Path.Combine(staging, rel);
                     Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                     File.Copy(entry, dest, overwrite: true);
                 }
+                if (skipped > 0)
+                    AppLog.Info("backup", $"导入包里有 {skipped} 个非备份条目已忽略");
                 AppLog.Info("backup", $"导入包已校验并暂存（{cfg.Accounts.Count} 个账号），等待重启应用");
                 return true;
             }
@@ -195,6 +199,11 @@ public static class BackupService
             foreach (var src in files)
             {
                 var rel = Path.GetRelativePath(staging, src);
+                if (!IsImportAllowed(rel))
+                {
+                    AppLog.Error("backup", "跳过非备份条目: " + rel);
+                    continue;
+                }
                 var dest = Path.Combine(Paths.Root, rel);
                 if (File.Exists(dest))
                 {
@@ -215,4 +224,20 @@ public static class BackupService
         }
     }
 
+    /// <summary>
+    /// 导入包允许落位的条目，与 <see cref="ExportTo"/> 写出的内容一致：
+    /// <c>config.json</c>、<c>data/checkin.db</c>、<c>data/usage_*.jsonl</c>。
+    /// 备份包是外部输入，没有白名单就等于允许它往数据目录写任意文件。
+    /// </summary>
+    private static bool IsImportAllowed(string rel)
+    {
+        if (string.Equals(rel, "config.json", StringComparison.OrdinalIgnoreCase)) return true;
+        var norm = rel.Replace('\\', '/');
+        if (!norm.StartsWith("data/", StringComparison.OrdinalIgnoreCase)) return false;
+        if (norm.IndexOf('/', "data/".Length) >= 0) return false;   // 不允许 data/ 下再套目录
+        var name = norm["data/".Length..];
+        return string.Equals(name, "checkin.db", StringComparison.OrdinalIgnoreCase)
+               || (name.StartsWith("usage_", StringComparison.OrdinalIgnoreCase) &&
+                   name.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase));
+    }
 }
