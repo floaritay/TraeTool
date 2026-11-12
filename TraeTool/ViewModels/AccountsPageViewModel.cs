@@ -115,10 +115,9 @@ public partial class AccountsPageViewModel : ObservableObject
                 }
             }
 
-            // 新账号：设备号优先用客户端 dc id（16 位数字且未被占用）
+            // 新账号：设备号优先用客户端 dc id（格式合法且未被占用）
             var acc = new Account { Token = token, Session = probe.Session };
-            if (!string.IsNullOrEmpty(probe.DeviceId) && probe.DeviceId.Length == 16 &&
-                probe.DeviceId.All(char.IsDigit) &&
+            if (DeviceIdFactory.IsValid(probe.DeviceId) &&
                 AppServices.Config.Accounts.All(a => a.DeviceId != probe.DeviceId))
                 acc.DeviceId = probe.DeviceId;
 
@@ -363,12 +362,14 @@ public partial class AccountsPageViewModel : ObservableObject
         StatusMessage = "正在刷新账号状态…";
         try
         {
-            foreach (var row in Rows)
+            // 刷新范围取全部账号：Rows 只是当前筛选/分组后的视图，
+            // 按它循环会让被筛掉的账号永远刷不到
+            foreach (var acc in AppServices.Config.Accounts.ToList())
             {
-                var acc = row.Account;
+                var row = Rows.FirstOrDefault(r => r.Account.Id == acc.Id);
                 if (string.IsNullOrEmpty(acc.Token) && string.IsNullOrEmpty(acc.Session))
                 {
-                    row.Refresh();
+                    row?.Refresh();
                     continue;
                 }
 
@@ -414,7 +415,7 @@ public partial class AccountsPageViewModel : ObservableObject
                 }
 
                 AppServices.SaveConfig();
-                row.Refresh();
+                row?.Refresh();
             }
             StatusMessage = "账号状态已刷新";
         }

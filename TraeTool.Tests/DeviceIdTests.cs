@@ -26,6 +26,23 @@ public class DeviceIdTests
         Assert.DoesNotContain(id, used);
     }
 
+    [Theory]
+    [InlineData("1000000000000001")]
+    [InlineData("10000001")]                       // 下限：8 位
+    [InlineData("123456789012345678901234")]       // 上限：24 位
+    public void IsValid_accepts_digit_ids_within_bounds(string id)
+        => Assert.True(DeviceIdFactory.IsValid(id));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("1234567")]                        // 7 位：过短
+    [InlineData("1234567890123456789012345")]      // 25 位：过长
+    [InlineData("100000000000000a")]               // 含非数字
+    [InlineData("1000-0000-0000-0001")]            // GUID 形态会触发服务端风控
+    public void IsValid_rejects_anything_else(string? id)
+        => Assert.False(DeviceIdFactory.IsValid(id));
+
     [Fact]
     public void EnsureDeviceIdUnique_fills_missing_device_id()
     {

@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.Win32;
 
 namespace TraeTool.Services;
@@ -16,8 +17,13 @@ public static class AutoStartManager
                             ?? throw new InvalidOperationException("无法打开注册表 Run 键");
             if (enabled)
             {
-                var exe = Environment.ProcessPath
-                          ?? throw new InvalidOperationException("无法定位可执行文件路径");
+                // 自启项写程序目录下的固定路径：Environment.ProcessPath 取决于本次启动方式
+                // （宿主进程、临时目录等），不是稳定的安装位置
+                var local = Path.Combine(AppContext.BaseDirectory, "TraeTool.exe");
+                var exe = File.Exists(local)
+                    ? local
+                    : Environment.ProcessPath
+                      ?? throw new InvalidOperationException("无法定位可执行文件路径");
                 key.SetValue(ValueName, $"\"{exe}\"");
             }
             else
