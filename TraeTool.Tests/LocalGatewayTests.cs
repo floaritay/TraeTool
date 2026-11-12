@@ -20,8 +20,7 @@ public class LocalGatewayTests
         /// <summary>取一个能绑定成功的端口（CI 上端口偶发占用时换一个）。</summary>
         public GatewayFixture(int preferredPort)
         {
-            AppSettings? cfg = null;
-            for (int i = 0; i < 20 && cfg == null; i++)
+            for (int i = 0; i < 20; i++)
             {
                 var gw = new LocalGateway();
                 var c = new AppSettings
@@ -30,9 +29,10 @@ public class LocalGatewayTests
                     GatewayPort = preferredPort + i,
                     GatewayToken = "test-token",
                 };
-                if (gw.Start(c)) { Gateway = gw; cfg = c; }
+                if (gw.Start(c)) { Gateway = gw; return; }
+                gw.Stop();
             }
-            if (cfg == null) throw new InvalidOperationException("无法绑定测试端口");
+            throw new InvalidOperationException("无法绑定测试端口");
         }
 
         public Uri Url(string path) => new($"{Gateway.Endpoint}{path.TrimStart('/')}");
@@ -109,16 +109,29 @@ public class LocalGatewayTests
     }
 
     [Fact]
-    public void Preflight_request_is_answered()
+    public void Preflight_from_loopback_origin_is_answered_with_that_origin()
     {
-        using var fx = Open(19200);
+        using var fx = Open(19240);
         using var req = new HttpRequestMessage(HttpMethod.Options, fx.Url("/status"));
+        req.Headers.Add("Origin", "http://localhost:3000");
         var resp = fx.Client.SendAsync(req).Result;
 
         Assert.Equal(HttpStatusCode.NoContent, resp.StatusCode);
-        Assert.Equal("*", resp.Headers.Contains("Access-Control-Allow-Origin")
-            ? string.Join(",", resp.Headers.GetValues("Access-Control-Allow-Origin"))
-            : null);
+        Assert.Equal("http://localhost:3000", string.Join(",",
+            resp.Headers.GetValues("Access-Control-Allow-Origin")));
+        Assert.Contains("Origin", resp.Headers.GetValues("Vary"));
+    }
+
+    [Fact]
+    public void Preflight_from_other_origin_gets_no_cors_grant()
+    {
+        using var fx = Open(19260);
+        using var req = new HttpRequestMessage(HttpMethod.Options, fx.Url("/status"));
+        req.Headers.Add("Origin", "http://example.com");
+        var resp = fx.Client.SendAsync(req).Result;
+
+        Assert.Equal(HttpStatusCode.NoContent, resp.StatusCode);
+        Assert.False(resp.Headers.Contains("Access-Control-Allow-Origin"));
     }
 
     [Fact]

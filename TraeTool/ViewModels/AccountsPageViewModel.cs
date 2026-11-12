@@ -117,9 +117,9 @@ public partial class AccountsPageViewModel : ObservableObject
 
             // 新账号：设备号优先用客户端 dc id（格式合法且未被占用）
             var acc = new Account { Token = token, Session = probe.Session };
-            if (DeviceIdFactory.IsValid(probe.DeviceId) &&
-                AppServices.Config.Accounts.All(a => a.DeviceId != probe.DeviceId))
-                acc.DeviceId = probe.DeviceId;
+            if (probe.DeviceId is { } clientDeviceId && DeviceIdFactory.IsValid(clientDeviceId) &&
+                AppServices.Config.Accounts.All(a => a.DeviceId != clientDeviceId))
+                acc.DeviceId = clientDeviceId;
 
             lock (ConfigStore.SyncRoot) AppServices.Config.Accounts.Add(acc);
             AppServices.Config.ActiveAccountId = acc.Id;
