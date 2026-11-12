@@ -38,6 +38,8 @@ python -I tools\make_release.py                  # 目录模式（bin\Release �
 python -I tools\make_release.py --single-file    # 单文件模式（先 dotnet publish，见下）
 ```
 
+打包默认只保留 Windows 原生库（`runtimes/win-*/`）：完整 `runtimes/` 未压缩约 24.5 MB，其中只有 `win-*` 会在 Windows 上加载，其余会让更新包大出数倍。需要完整 `runtimes/` 时加 `--all-runtimes`。
+
 单文件发布使用 `TraeTool/Properties/PublishProfiles/win-x64-singlefile.pubxml`（框架依赖，目标机需装 .NET 8 桌面运行时）：
 
 ```powershell
@@ -75,7 +77,7 @@ dotnet publish TraeTool\TraeTool.csproj -p:PublishProfile=win-x64-singlefile
 | GET | `/`、`/healthz` | 端点索引与存活探针（无鉴权） |
 | GET | `/status?limit=20` | 账号健康、今日签到、剩余额度、近期记录；不含 Token/会话/设备号 |
 | POST | `/checkin` | 触发批量签到，`202` 异步受理，`409` 表示已有批次在跑；结果见 `/status` 的 `lastRun` |
-| GET | `/v1/models` | OpenAI 兼容模型列表：上游注册表的真实 id + 别名 `trae`（需开启转发） |
+| GET | `/v1/models` | OpenAI 兼容模型列表：上游注册表的真实 id + 别名 `trae`（需开启转发）；「名称推断」层只保留解析能力，不列在列表里 |
 | POST | `/v1/chat/completions` | OpenAI 兼容对话，在账号池内取号转发（需开启转发） |
 | POST | `/v1/messages` | Anthropic Messages 兼容对话（Claude 系客户端），同一池、同一流式语义 |
 | POST | `/v1/responses` | OpenAI Responses 兼容对话（`input` 字符串或 item 数组，支持 `stream`） |
@@ -90,7 +92,7 @@ curl http://127.0.0.1:8766/v1/responses -H "Authorization: Bearer <令牌>" -d "
 
 把任意 OpenAI 客户端的 base URL 指向 `http://127.0.0.1:8766/v1`（设置页可直接选中复制）、API key 填访问令牌，即可走账号池发起对话；Claude 系客户端把 base URL 指到根路径 `http://127.0.0.1:8766`，走 `/v1/messages`。监听端口在设置页可自行填写，留空用默认 8766。
 
-**模型列表（四层来源聚合，高优先级在前、整体去重）**：「本机网关」页的模型列表可直接增删改——1) 人工维护（覆盖项 `ModelOverrides`）→ 2) 官网同步（`POST /api/ide/v1/batch_get_detail_param`，取 `function_configs[].config_info_list[]` 的 `config_name`，只收 `config_switch=true` 且有显示名的项，30 分钟缓存，同步失败保留上次在线结果）→ 3) 内置参考（内置 `KnownIds`）→ 4) 名称推断（本网关收到过的请求名自动累积，最多保留最近 32 条、单名不超过 64 字符，超出丢弃最早的；解析时再做归一化推断：去上下文标记 `trae[1M]`、去厂商前缀 `openai/`、忽略大小写与分隔符，`claude-sonnet-4` 可推断到 `custom_claude-sonnet-4`）。`fast_apply` / `summary` / `title_generation` 这类没有显示名的是功能开关，不进列表。「更新模型列表」按钮清缓存后强制重新同步官网源并重建四层。设置页把结果渲染成 9 列表格：模型 ID / 展示名 / 厂商 / 倍率 / 思考档位 / 默认上下文 / 长上下文 / 图片 / 操作（复制 / 编辑 / 隐藏或恢复 / 删除），其中展示名、倍率、图片、思考档位取自官网响应（`display_config.display_name`、`display_contact_config.consumption_rate.data.rate`、`display_config.multimodal`、`reasoning_effort_config`），厂商与上下文窗口上游不返回，由内置条目补齐；同 id 时以先到层为准、空字段由后到层补齐，所以覆盖项只填想改的字段即可，其余仍由低层补齐。
+**模型列表（四层来源聚合，高优先级在前、整体去重）**：「本机网关」页的模型列表可直接增删改——1) 人工维护（覆盖项 `ModelOverrides`）→ 2) 官网同步（`POST /api/ide/v1/batch_get_detail_param`，取 `function_configs[].config_info_list[]` 的 `config_name`，只收 `config_switch=true` 且有显示名的项，30 分钟缓存，同步失败保留上次在线结果）→ 3) 内置参考（内置 `KnownIds`）→ 4) 名称推断（本网关收到过的请求名自动累积，最多保留最近 32 条、单名不超过 64 字符，超出丢弃最早的；解析时再做归一化推断：去上下文标记 `trae[1M]`、去厂商前缀 `openai/`、忽略大小写与分隔符，`claude-sonnet-4` 可推断到 `custom_claude-sonnet-4`）；该层只在解析请求名时参与匹配，不进入 `/v1/models` 的列表）。**别名 `trae` 与目录里没有的名字会回落到默认项**：`PreferredModel` 在列表中时用它，否则取合并列表首项（人工覆盖项优先，其次官网同步结果，再次内置表）——即默认模型取决于列表顺序而非固定值；被替换的名字（别名与空名除外）会记一行日志（`pool` 标签）便于查证。`fast_apply` / `summary` / `title_generation` 这类没有显示名的是功能开关，不进列表。「更新模型列表」按钮清缓存后强制重新同步官网源并重建四层。设置页把结果渲染成 9 列表格：模型 ID / 展示名 / 厂商 / 倍率 / 思考档位 / 默认上下文 / 长上下文 / 图片 / 操作（复制 / 编辑 / 隐藏或恢复 / 删除），其中展示名、倍率、图片、思考档位取自官网响应（`display_config.display_name`、`display_contact_config.consumption_rate.data.rate`、`display_config.multimodal`、`reasoning_effort_config`），厂商与上下文窗口上游不返回，由内置条目补齐；同 id 时以先到层为准、空字段由后到层补齐，所以覆盖项只填想改的字段即可，其余仍由低层补齐。
 
 **模型列表的增删改**：「新增模型」加一条自建条目（只有它能改模型 ID）；「编辑」展开表单改展示名 / 厂商 / 倍率 / 思考档位 / 默认上下文 / 长上下文 / 图片（图片是三选一：跟随 / 支持 / 不支持），字段留空＝交回低层补齐。「隐藏」＝从列表与 `/v1/models` 里消失，且官网同步、内置、推断都带不回来（按归一化 id 挡住同名变体），勾选「显示已隐藏」后会灰显列出并可「恢复」。「删除」只清掉该条的本地覆盖（官网/内置层有同名条目时显示回到上游的值）。改动即时生效：网关每次请求都重新读取配置，不需要重启网关。旧版的「手工维护模型」文本框（逗号/换行分隔的名字清单）会在加载配置时迁移成覆盖项，随后该字段清空。
 
@@ -117,13 +119,13 @@ curl http://127.0.0.1:8766/v1/responses -H "Authorization: Bearer <令牌>" -d "
 - **登录**：WebView2 打开 `www.trae.cn/dashboard#usage`，轮询 `localStorage['Cloud-IDE-Token']`（JWT）+ Cookie `X-Cloudide-Session`；JWT 失效经 `POST /cloudide/api/v3/common/GetUserToken` 静默换新
 - **签到**：`POST /trae/api/v2/ug/checkin_credits/claim`，头部 `Cloud-IDE-JWT` + `X-User-Region: cn` + `x-device-id`
 - **风控**：`x-device-id` 为 16 位数字且每账号独立（服务端按设备号每日去重）；9074 → 换设备号重试一次
-- **客户端切换**：固定 15 项载体白名单备份/回写 `%APPDATA%\Trae CN`；恢复前删 `code.lock` 与 stale WAL/SHM；成功判定轮询凭据键而非时间戳；切换成功后回写 live `storage.json`（refresh 轮换防 401）
+- **客户端切换**：固定 15 项载体白名单备份/回写 `%APPDATA%\Trae CN`；建档先整备到暂存目录再整体换入（失败不破坏原档案），恢复只写档案清单内的文件；恢复前删 `code.lock` 与 stale WAL/SHM；成功判定轮询凭据键而非时间戳；切换成功后回写 live `storage.json`（refresh 轮换防 401，回写前校验 live 凭据键仍齐全）；回滚快照在 `%APPDATA%\TraeTool\switch\rollback_*`，过期快照启动时清理
 - **配置**：新增密文字段必须同时登记 `ConfigStore.SecretFields`（漏一侧会"重启就失效"）
 - **主题**：`Themes/Light|Dark.xaml` 双字典同键集，应用主题时先移除旧字典再追加（WPF 合并字典越靠后优先级越高）；控件样式集中在 `Themes/Controls.xaml`
 - **凭证获取（双通道）**：WebView 登录窗与本机客户端只读探查同时启动，任一通道拿到可用凭据即采用；WebView2 运行时不可用或登录未完成时降级到客户端探查（降级前弹确认，避免误取客户端当前账号）
 - **账号健康**：连续签到失败达到阈值（默认 3 次，可配置）当日暂停该账号，次日自动恢复；成功或已签即清零
-- **备份**：配置 + 签到库快照 + 用量缓存打包 zip；勾选口令加密时整体封装为 `TTBAK1` 容器（AES-GCM + PBKDF2-SHA256 210k 次），可跨 Windows 账户/机器用口令恢复
-- **更新包校验**：更新源提供 SHA256（GitHub 资产 digest / 同名 `.sha256` 资产 / version.json 字段）时下载后校验，不匹配即拒绝安装
+- **备份**：配置 + 签到库快照 + 用量缓存打包 zip（不含客户端登录态档案 `vault\`，那部分按账号重新建档）；导入只受理这三类条目（白名单），备份包是外部输入，不做白名单等于允许它往数据目录写任意文件；勾选口令加密时整体封装为 `TTBAK1` 容器（AES-GCM + PBKDF2-SHA256 210k 次），可跨 Windows 账户/机器用口令恢复
+- **更新包校验**：更新源必须提供 SHA256（GitHub 资产 digest / 同名 `.sha256` 资产 / version.json 字段），下载后比对；缺失校验和或不匹配都拒绝安装
 - **HTTP**：全进程按超时分档共享 `HttpClients`；批次/切换占用互斥锁走 `TryEnterBatch` / `TryEnterSwitch` 原子占用
 - **出站代理**：`ProxyConfig` 一份配置同时施加到 `.NET` 通道与 WebView2（`--proxy-server`）；手动模式地址无效则回退跟随系统，变更代理只重建共享实例
 - **本机管理网关**：`HttpListener` 仅绑 `127.0.0.1`，回环以外不可达；令牌默认每台机器随机生成，`/checkin` 走 `TryEnterBatch` 与页面签到互斥
