@@ -354,7 +354,7 @@
                         <Path DockPanel.Dock="Left" Data="{x:Static icons:Icons.Shield}" Style="{StaticResource Ico}"
                               Width="13" Height="13" Stroke="{DynamicResource MuteBrush}" Margin="0,2,8,0"/>
                         <TextBlock FontSize="10.5" Foreground="{DynamicResource MuteBrush}" TextWrapping="Wrap"
-                                   Text="切换会关闭并重启 Trae 客户端；失败时自动回滚，快照位于 %TEMP%\traeswitch_rollback_*。"/>
+                                   Text="切换会关闭并重启 Trae 客户端；失败时自动回滚，快照位于 %APPDATA%\TraeTool\switch\rollback_*。"/>
                     </DockPanel>
                     <Expander Margin="0,6,0,0" FontSize="10.5" Foreground="{DynamicResource SubBrush}">
                         <Expander.Header>

@@ -65,7 +65,7 @@ public sealed class Switcher(VaultStore vault)
         }
 
         // ③ 回滚快照（必须在动 live 之前建立）
-        var rollbackDir = Path.Combine(Path.GetTempPath(), "traeswitch_rollback_" + Guid.NewGuid().ToString("N"));
+        var rollbackDir = Paths.SwitchSnapshotDir("rollback_" + Guid.NewGuid().ToString("N"));
         try
         {
             await VaultStore.SnapshotLiveAsync(rollbackDir, log, ct);
@@ -87,19 +87,11 @@ public sealed class Switcher(VaultStore vault)
         {
             Say("恢复失败，正在回滚: " + ex.Message);
             AppLog.Error("switch", "恢复失败: " + ex);
-            try
-            {
-                await VaultStore.RestoreFromAsync(rollbackDir, log, ct);
-                ClientControl.Launch(exe);
-                FileSystemUtil.TryDeleteDir(rollbackDir);
-            }
-            catch (Exception rex)
-            {
-                AppLog.Error("switch", "回滚也失败: " + rex);
-                return new SwitchResult(SwitchOutcome.Failed,
-                    $"恢复失败且回滚异常，快照保留在 {rollbackDir}", rollbackDir);
-            }
-            return new SwitchResult(SwitchOutcome.Failed, "恢复失败，已回滚: " + ex.Message);
+            var outcome = await RollbackAsync(rollbackDir, exe, log, ct);
+            return outcome == SwitchOutcome.Failed
+                ? new SwitchResult(SwitchOutcome.Failed,
+                    $"恢复失败且未能回滚，快照保留在 {rollbackDir}", rollbackDir)
+                : new SwitchResult(SwitchOutcome.Failed, "恢复失败，已回滚: " + ex.Message);
         }
 
         // ⑤ 拉起
@@ -158,8 +150,13 @@ public sealed class Switcher(VaultStore vault)
     {
         try
         {
-            if (ClientControl.IsRunning())
-                await ClientControl.KillAllAsync(ct);
+            // 客户端关不掉就不能写回：运行中的客户端会拿内存态覆盖文件，写回只会得到半新半旧
+            if (ClientControl.IsRunning() && !await ClientControl.KillAllAsync(ct))
+            {
+                AppLog.Error("switch", "回滚中止：客户端无法关闭，快照保留");
+                log?.Report("客户端无法关闭，已保留回滚快照 " + rollbackDir);
+                return SwitchOutcome.Failed;
+            }
             await VaultStore.RestoreFromAsync(rollbackDir, log, ct);
             ClientControl.Launch(exe);
             FileSystemUtil.TryDeleteDir(rollbackDir);

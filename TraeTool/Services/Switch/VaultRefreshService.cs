@@ -15,6 +15,11 @@ public sealed class VaultRefreshService
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(10);
     /// <summary>唯一判定阈值：最佳分需领先第二名至少 20 个百分点（防同会话档案并列时刷错对象）。</summary>
     private const double UniqueLead = 0.20;
+    /// <summary>
+    /// 保鲜（覆盖写档案）的最低吻合度：低于此值只跳过不重写。
+    /// 保鲜是用 live 覆盖档案，判错就会丢掉原档案，阈值必须明显高于「判定身份」的 <see cref="VaultStore.SimilarityPass"/>。
+    /// </summary>
+    private const double RefreshMinScore = 0.90;
     /// <summary>档案已足够新（几乎全同）就不重写。</summary>
     private const double FreshEnough = 0.99;
 
@@ -51,6 +56,12 @@ public sealed class VaultRefreshService
                 try
                 {
                     var rep = new VaultStore().ScoreAgainstLive(acc.Id);
+                    // 档案自身与清单不符 = 已损坏：拿 live 覆盖只会把坏档换成一个来路不明的档
+                    if (rep.IntegrityBad > 0)
+                    {
+                        AppLog.Error("vault", $"保鲜跳过：{acc.DisplayName(i + 1)} 档案完整性异常（{rep.IntegrityBad} 项）");
+                        continue;
+                    }
                     scored.Add((acc.Id, acc.DisplayName(i + 1), rep.Score));
                 }
                 catch (Exception ex)
@@ -72,6 +83,11 @@ public sealed class VaultRefreshService
             if (best.Score >= FreshEnough)
             {
                 AppLog.Info("vault", $"保鲜跳过：{best.Name} 档案已足够新（{best.Score:P0}）");
+                return;
+            }
+            if (best.Score < RefreshMinScore)
+            {
+                AppLog.Info("vault", $"保鲜跳过：{best.Name} 与 live 吻合度 {best.Score:P0} 低于保鲜阈值 {RefreshMinScore:P0}");
                 return;
             }
 

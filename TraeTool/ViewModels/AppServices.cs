@@ -77,6 +77,10 @@ public static class AppServices
         BackupService.ApplyImportStaging(); // 导入备份落位必须在打开库/读配置之前
         Database.Open();
         Config = ConfigStore.Load();
+        // 登录态残留清理：已移除账号的 WebView 目录、回滚快照/档案暂存等崩溃残留、过期日志
+        Paths.CleanupOrphanProfiles(Config.Accounts.Select(a => a.Id));
+        Paths.CleanupStaleTempDirs();
+        Paths.CleanupOldLogs();
         Checkin = new CheckinService(() => Config, SaveConfig);
         SaveConfig(); // 首启立即落盘 config.json（便于确认数据位置；其后由各变更点保存）
         ApplyProxy();  // 共享 HTTP 实例按配置的代理构建
@@ -98,8 +102,10 @@ public static class AppServices
             return;
         }
         var tokenMissing = string.IsNullOrEmpty(Config.GatewayToken);
+        var wantedPort = Config.GatewayPort;
         Gateway.Start(Config);
-        if (tokenMissing) SaveConfig();
+        // 令牌或端口被网关改写（端口占用回退）时才落盘
+        if (tokenMissing || Config.GatewayPort != wantedPort) SaveConfig();
     }
 
     public static void RaiseAccountsChanged() => AccountsChanged?.Invoke();

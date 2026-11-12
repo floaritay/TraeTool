@@ -21,6 +21,7 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(System.Windows.StartupEventArgs e)
     {
         base.OnStartup(e);
+        HookGlobalExceptionHandlers();
 
         // 单实例互斥：第二个实例只负责唤醒第一个实例的窗口后立即退出
         _singleInstanceMutex = new Mutex(true, @"Local\TraeTool.SingleInstance", out var isFirst);
@@ -40,6 +41,7 @@ public partial class App : System.Windows.Application
         // --selftest-update=<feed> 自动更新端到端自检（检查→下载→脚本接管重启）
         bool wizardPreview = false;
         bool selftestImport = false;
+        bool updateFailed = false;
         string? selftestUpdate = null;
         foreach (var arg in e.Args)
         {
@@ -51,6 +53,8 @@ public partial class App : System.Windows.Application
                 selftestUpdate = arg["--selftest-update=".Length..];
             else if (string.Equals(arg, "--selftest-import", StringComparison.OrdinalIgnoreCase))
                 selftestImport = true;
+            else if (string.Equals(arg, "--update-failed", StringComparison.OrdinalIgnoreCase))
+                updateFailed = true;   // 安装脚本覆盖失败时回传（见 UpdateService.ApplyAndRestart）
         }
 
         try
@@ -88,6 +92,13 @@ public partial class App : System.Windows.Application
         MainWindow = window;
         window.Show();
 
+        if (updateFailed)
+            Dispatcher.BeginInvoke(() => Views.DialogWindow.Show(
+                "更新未完成",
+                "上次自动更新在覆盖程序文件时失败，当前仍是旧版本（通常是安装目录需要管理员权限）。\n\n" +
+                "可改用便携版目录，或右键以管理员身份启动后再检查更新。",
+                Views.DialogKind.Warn, primary: "知道了"));
+
         if (wizardPreview)
             Dispatcher.BeginInvoke(() => Views.ArchiveWizardWindow.RunPreview(window));
 
@@ -99,7 +110,7 @@ public partial class App : System.Windows.Application
                     AppLog.Info("update", $"selftest: 检查更新源 {selftestUpdate}");
                     var r = await UpdateService.CheckAsync(selftestUpdate);
                     if (r.Error != null) { AppLog.Error("update", "selftest 检查失败: " + r.Error); return; }
-                    if (r.UpToDate || r.Update == null) { AppLog.Error("update", "selftest: 未发现更高版本（预期 1.0.1）"); return; }
+                    if (r.UpToDate || r.Update == null) { AppLog.Error("update", "selftest: 更新源没有高于本程序的版本（自检源版本需高于当前运行版本）"); return; }
                     AppLog.Info("update", $"selftest: 发现 v{r.Update.Version}，下载并解压…");
                     var (staging, err) = await UpdateService.DownloadAndStageAsync(r.Update);
                     if (err != null || staging == null) { AppLog.Error("update", "selftest 下载失败: " + err); return; }
@@ -118,7 +129,7 @@ public partial class App : System.Windows.Application
                 AppLog.Info("import", "selftest: 开始只读探查本机客户端…");
                 var p = await LocalClientImporter.ProbeAsync();
                 AppLog.Info("import",
-                    $"selftest 结果: ok={p.Ok} token={(p.Token != null)} sessionLen={p.Session?.Length ?? 0} device={p.DeviceId ?? "-"} source={p.Source}");
+                    $"selftest 结果: ok={p.Ok} token={(p.Token != null)} sessionLen={p.Session?.Length ?? 0} device={(p.DeviceId != null)} source={p.Source}");
                 AppLog.Info("import", "selftest msg: " + p.Message);
             });
 
@@ -172,6 +183,33 @@ public partial class App : System.Windows.Application
             }
         }) { IsBackground = true };
         _showListener.Start();
+    }
+
+    /// <summary>
+    /// 全局异常兜底：托盘常驻下，UI 线程异常若不接管会直接结束进程且只留托盘图标消失。
+    /// 全部记录到日志；界面异常标记为已处理以保持进程存活。
+    /// </summary>
+    private void HookGlobalExceptionHandlers()
+    {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            AppLog.Error("app", "未处理的界面异常: " + args.Exception);
+            TryNotify("程序遇到错误", "已记录到日志；若反复出现请重启程序");
+            args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            AppLog.Error("app", "未处理的进程异常: " + args.ExceptionObject);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            AppLog.Error("app", "未观察的后台任务异常: " + args.Exception);
+            args.SetObserved();
+        };
+    }
+
+    private static void TryNotify(string title, string text)
+    {
+        try { MainWindowHost.ShowBalloon?.Invoke(title, text); }
+        catch { /* 通知失败不影响主流程 */ }
     }
 
     protected override void OnExit(System.Windows.ExitEventArgs e)

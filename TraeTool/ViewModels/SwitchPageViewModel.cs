@@ -13,7 +13,7 @@ namespace TraeTool.ViewModels;
 
 /// <summary>
 /// 「客户端切换」页：每账号 建档/切换/校验/删除 + 客户端路径检测 + 执行日志。
-/// 冷切换会关闭并重启 Trae 客户端；失败回滚快照在 %TEMP%\traeswitch_rollback_*。
+/// 冷切换会关闭并重启 Trae 客户端；失败回滚快照在 %APPDATA%\TraeTool\switch\rollback_*。
 /// </summary>
 public partial class SwitchPageViewModel : ObservableObject
 {

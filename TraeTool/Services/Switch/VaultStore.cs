@@ -51,7 +51,10 @@ public sealed record VerifyReport(
 /// 内部按数据根相对路径镜像 + meta.json（SHA-256 清单）。
 /// 硬约束：
 ///  - 恢复前删 live code.lock，且无条件删 live state.vscdb-wal/-shm（否则 WAL 回放上一账号）
-///  - 目录条目先整删再整树复制；文件先删再拷（防半新半旧）；删除失败抛 VaultIoException 触发回滚
+///  - 目录条目先整删再整树重写；文件一律先写同目录 .tmp 再改名覆盖（防半新半旧）；
+///    删除失败抛 VaultIoException 触发回滚（禁止吞掉）
+///  - 建档先整备到 &lt;accountId&gt;.staging_*，成功后整体换入正式目录，上一代留 &lt;accountId&gt;.bak
+///  - 档案带 meta.json 清单时，恢复只写清单内文件（档案目录里的多余文件不进入 live）
 ///  - 重建档保留原 CreatedUtc；切换成功后 storage.json 回写（refresh 轮换防 401）
 /// </summary>
 public sealed class VaultStore
@@ -71,11 +74,14 @@ public sealed class VaultStore
 
     public static bool Exists(string accountId) => File.Exists(Path.Combine(VaultPath(accountId), "meta.json"));
 
-    public static VaultMeta? TryReadMeta(string accountId)
+    public static VaultMeta? TryReadMeta(string accountId) => TryReadMetaAt(VaultPath(accountId));
+
+    /// <summary>读取指定根目录下的 meta.json；不存在或损坏返回 null。</summary>
+    private static VaultMeta? TryReadMetaAt(string root)
     {
         try
         {
-            var p = Path.Combine(VaultPath(accountId), "meta.json");
+            var p = Path.Combine(root, "meta.json");
             if (!File.Exists(p)) return null;
             return JsonSerializer.Deserialize<VaultMeta>(File.ReadAllText(p), MetaJson);
         }
@@ -87,6 +93,7 @@ public sealed class VaultStore
     /// <summary>
     /// 把 live 数据根的 15 项载体（过滤排除目录）备份到 vault\&lt;accountId&gt;\。
     /// 已有档案则刷新 Entries 但保留原 CreatedUtc。
+    /// 先整备到暂存目录再整体换入：中途失败（含取消）不会破坏已有档案。
     /// </summary>
     public Task<VaultMeta> BackupAsync(
         string accountId, string accountName, IProgress<string>? log = null, CancellationToken ct = default)
@@ -94,53 +101,80 @@ public sealed class VaultStore
         return Task.Run(() =>
         {
             var dir = VaultPath(accountId);
-            Directory.CreateDirectory(dir);
-
-            var entries = new List<VaultEntry>();
-            int files = 0;
-            long bytes = 0;
-            foreach (var (rel, isDir) in CarrierDefs.Whitelist)
+            var staging = Paths.VaultStagingDir(accountId);
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                var src = CarrierDefs.Abs(rel);
-                if (isDir)
+                Directory.CreateDirectory(staging);
+
+                var entries = new List<VaultEntry>();
+                int files = 0;
+                long bytes = 0;
+                foreach (var (rel, isDir) in CarrierDefs.Whitelist)
                 {
-                    if (!Directory.Exists(src)) continue;
-                    foreach (var file in EnumerateFiltered(src))
+                    ct.ThrowIfCancellationRequested();
+                    var src = CarrierDefs.Abs(rel);
+                    if (isDir)
                     {
-                        ct.ThrowIfCancellationRequested();
-                        var fileRel = Path.GetRelativePath(CarrierDefs.DataRoot, file);
-                        var dst = Path.Combine(dir, fileRel);
-                        CopyFileStrict(file, dst, rel: fileRel);
-                        entries.Add(new VaultEntry(fileRel.Replace('\\', '/'),
+                        if (!Directory.Exists(src)) continue;
+                        foreach (var file in EnumerateFiltered(src))
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            var fileRel = Path.GetRelativePath(CarrierDefs.DataRoot, file);
+                            var dst = Path.Combine(staging, fileRel);
+                            CopyFileStrict(file, dst, rel: fileRel);
+                            entries.Add(new VaultEntry(fileRel.Replace('\\', '/'),
+                                new FileInfo(dst).Length, HashFile(dst)));
+                            files++; bytes += entries[^1].Len;
+                            log?.Report($"已备份 {fileRel}");
+                        }
+                    }
+                    else
+                    {
+                        if (!File.Exists(src)) continue;
+                        var dst = Path.Combine(staging, rel);
+                        CopyFileStrict(src, dst, rel);
+                        entries.Add(new VaultEntry(rel.Replace('\\', '/'),
                             new FileInfo(dst).Length, HashFile(dst)));
                         files++; bytes += entries[^1].Len;
-                        log?.Report($"已备份 {fileRel}");
+                        log?.Report($"已备份 {rel}");
                     }
                 }
-                else
-                {
-                    if (!File.Exists(src)) continue;
-                    CopyFileStrict(src, Path.Combine(dir, rel), rel);
-                    var dst = Path.Combine(dir, rel);
-                    entries.Add(new VaultEntry(rel.Replace('\\', '/'),
-                        new FileInfo(dst).Length, HashFile(dst)));
-                    files++; bytes += entries[^1].Len;
-                    log?.Report($"已备份 {rel}");
-                }
-            }
 
-            var old = TryReadMeta(accountId);
-            var meta = new VaultMeta
+                var old = TryReadMeta(accountId);
+                var meta = new VaultMeta
+                {
+                    Account = accountName,
+                    CreatedUtc = old?.CreatedUtc ?? DateTime.UtcNow, // 重建档保留原始时间
+                    Entries = entries,
+                };
+                WriteJsonAtomic(Path.Combine(staging, "meta.json"), meta);
+
+                // 换入：旧档案整树挪到 .bak（只留一代），暂存目录改名为正式档案
+                var bak = Paths.VaultBackupDir(accountId);
+                if (Directory.Exists(dir))
+                {
+                    FileSystemUtil.TryDeleteDir(bak);
+                    Directory.Move(dir, bak);
+                }
+                try
+                {
+                    Directory.Move(staging, dir);
+                }
+                catch
+                {
+                    // 换入失败：把旧档案挪回来，避免只剩 .bak 而无正式档案
+                    if (!Directory.Exists(dir) && Directory.Exists(bak)) Directory.Move(bak, dir);
+                    throw;
+                }
+
+                AppLog.Info("switch", $"建档完成 {accountName}: {files} 文件 / {bytes / 1024.0:0} KB");
+                return meta;
+            }
+            catch
             {
-                Account = accountName,
-                CreatedUtc = old?.CreatedUtc ?? DateTime.UtcNow, // 重建档保留原始时间
-                Entries = entries,
-            };
-            File.WriteAllText(Path.Combine(dir, "meta.json"),
-                JsonSerializer.Serialize(meta, MetaJson));
-            AppLog.Info("switch", $"建档完成 {accountName}: {files} 文件 / {bytes / 1024.0:0} KB");
-            return meta;
+                FileSystemUtil.TryDeleteDir(staging);
+                throw;
+            }
         }, ct);
     }
 
@@ -255,11 +289,15 @@ public sealed class VaultStore
     /// 恢复核心：前置清理 → 白名单逐条整删整拷。
     /// 前置：删 code.lock（双候选位置）；**无条件**删 live state.vscdb-wal/-shm——
     /// 客户端被强杀是常态，最新登录可能只在 WAL 里，不删就回放旧账号数据。
+    /// 源目录带 meta.json（档案）时只写回清单内文件；无清单（回滚快照）时按目录内容全量写回。
     /// 任何删除失败都抛 VaultIoException（禁止吞掉，调用方据已建的快照回滚）。
     /// </summary>
     private static void RestoreCore(string srcRoot, IProgress<string>? log, CancellationToken ct)
     {
         var live = CarrierDefs.DataRoot;
+        var manifest = TryReadMetaAt(srcRoot)?.Entries
+            .Select(e => e.Rel.Replace('\\', '/'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // ① 单实例锁
         foreach (var lockPath in new[]
@@ -298,13 +336,17 @@ public sealed class VaultStore
                 {
                     ct.ThrowIfCancellationRequested();
                     var fileRel = Path.GetRelativePath(src, file);
-                    var target = Path.Combine(dst, fileRel);
-                    CopyFileStrict(file, target, Path.Combine(rel, fileRel));
+                    var relFile = Path.Combine(rel, fileRel).Replace('\\', '/');
+                    // 档案带清单时只写回清单内文件：目录里的多余文件不进入 live
+                    if (manifest != null && !manifest.Contains(relFile)) continue;
+                    CopyFileStrict(file, Path.Combine(dst, fileRel), relFile);
                 }
             }
             else
             {
                 if (!File.Exists(src)) continue;
+                // 档案带清单时只写回清单内文件（同目录条目）
+                if (manifest != null && !manifest.Contains(rel.Replace('\\', '/'))) continue;
                 log?.Report($"恢复文件 {rel}");
                 DeletePathStrict(dst, rel, log);
                 CopyFileStrict(src, dst, rel);
@@ -318,6 +360,8 @@ public sealed class VaultStore
     /// <summary>
     /// 把 live storage.json 回写进档案并更新 meta 该条目（保留 CreatedUtc）。
     /// refresh token 每次切换被服务端轮换——档案不回写则同账号第二次切换必 401。
+    /// 回写前校验 live 仍是「凭据齐全的 JSON」：切换成功后客户端可能已清空凭据，
+    /// 把那种 storage.json 写进档案等于用坏档换掉好档，此时跳过并保留原档案。
     /// </summary>
     public Task SyncBackStorageJsonAsync(string accountId)
     {
@@ -328,6 +372,13 @@ public sealed class VaultStore
             if (!File.Exists(liveFile))
             {
                 AppLog.Error("switch", "回写失败：live storage.json 不存在");
+                return false;
+            }
+
+            var text = File.ReadAllText(liveFile);
+            if (!HasUsableCreds(text))
+            {
+                AppLog.Error("switch", "回写跳过：live storage.json 凭据键缺失或损坏，保留原档案");
                 return false;
             }
 
@@ -344,12 +395,28 @@ public sealed class VaultStore
                     new FileInfo(vaultFile).Length, HashFile(vaultFile));
                 if (idx >= 0) meta.Entries[idx] = entry;
                 else meta.Entries.Add(entry);
-                File.WriteAllText(Path.Combine(dir, "meta.json"),
-                    JsonSerializer.Serialize(meta, MetaJson));
+                WriteJsonAtomic(Path.Combine(dir, "meta.json"), meta);
             }
             AppLog.Info("switch", $"已回写 storage.json 到档案 {accountId[..Math.Min(8, accountId.Length)]}…");
             return true;
         });
+    }
+
+    /// <summary>storage.json 文本是否含齐全的非空凭据键（复用 AuthProbe 的键名与判定）。</summary>
+    private static bool HasUsableCreds(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
+            return Usable(AuthProbe.UsertagKey) && Usable(AuthProbe.CloudIdeKey);
+
+            bool Usable(string key)
+                => doc.RootElement.TryGetProperty(key, out var v) &&
+                   v.ValueKind == JsonValueKind.String &&
+                   !string.IsNullOrWhiteSpace(v.GetString());
+        }
+        catch { return false; }
     }
 
     // ==================== 快照（回滚区）====================
@@ -410,20 +477,33 @@ public sealed class VaultStore
         }
     }
 
-    /// <summary>拷贝（目标先删再写），失败抛 VaultIoException。</summary>
+    /// <summary>
+    /// 拷贝：先写同目录 .tmp 再改名覆盖，读取方不会看到半截文件。失败抛 VaultIoException。
+    /// 改名在源与目标同卷时为原子操作（暂存/档案/live 都在用户目录同一卷）。
+    /// </summary>
     private static void CopyFileStrict(string src, string dst, string rel)
     {
+        var tmp = dst + ".tmp";
         try
         {
             var dir = Path.GetDirectoryName(dst);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            if (File.Exists(dst)) File.Delete(dst);
-            File.Copy(src, dst, overwrite: false);
+            File.Copy(src, tmp, overwrite: true);
+            File.Move(tmp, dst, overwrite: true);
         }
         catch (Exception ex) when (ex is not VaultIoException)
         {
+            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* 残留 .tmp 不影响下次覆盖 */ }
             throw new VaultIoException(rel, "复制失败: " + ex.Message, ex);
         }
+    }
+
+    /// <summary>写 JSON：先写同目录 .tmp 再改名覆盖，避免清单出现半截内容。</summary>
+    private static void WriteJsonAtomic<T>(string path, T value)
+    {
+        var tmp = path + ".tmp";
+        File.WriteAllText(tmp, JsonSerializer.Serialize(value, MetaJson));
+        File.Move(tmp, path, overwrite: true);
     }
 
     /// <summary>删除文件/目录（不存在则跳过），失败抛 VaultIoException —— 绝不吞。</summary>
