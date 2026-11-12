@@ -33,7 +33,8 @@ public class BackupCryptoTests
     public void Wrong_password_fails_authentication()
     {
         var container = BackupCrypto.Encrypt(Sample(), "right");
-        Assert.Throws<CryptographicException>(() => BackupCrypto.Decrypt(container, "wrong"));
+        // AES-GCM 认证失败在 Windows 上是 CryptographicException 的子类，按基类断言
+        Assert.ThrowsAny<CryptographicException>(() => BackupCrypto.Decrypt(container, "wrong"));
     }
 
     [Fact]
@@ -42,7 +43,7 @@ public class BackupCryptoTests
         var container = BackupCrypto.Encrypt(Sample(), "pw");
         container[^1] ^= 0xFF;
 
-        Assert.Throws<CryptographicException>(() => BackupCrypto.Decrypt(container, "pw"));
+        Assert.ThrowsAny<CryptographicException>(() => BackupCrypto.Decrypt(container, "pw"));
     }
 
     [Fact]
