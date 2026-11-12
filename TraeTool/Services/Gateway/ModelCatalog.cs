@@ -93,7 +93,7 @@ public static partial class ModelCatalog
         var overrides = Overrides(cfg);
         return new ModelSources(
             overrides.Count(o => !o.Hidden && !string.IsNullOrWhiteSpace(o.Id)),
-            official, KnownIds.Length, ParseSeen(cfg.GatewaySeenModels).Count,
+            official, KnownIds.Length, SeenSnapshot(cfg).Count,
             overrides.Count(o => o.Hidden && !string.IsNullOrWhiteSpace(o.Id)), live, synced);
     }
 

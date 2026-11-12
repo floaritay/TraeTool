@@ -102,6 +102,34 @@ public class ProxyConfigTests
     }
 
     [Fact]
+    public void ApplyTo_manual_bypass_is_not_fooled_by_lookalike_hosts()
+    {
+        var handler = new SocketsHttpHandler();
+        new ProxyConfig(AppSettings.ProxyModes.Manual, "http://127.0.0.1:7890").ApplyTo(handler);
+        var proxy = handler.Proxy!;
+
+        // 绕过项的正则匹配整个 URI：只写主机名会连这类地址一起放行（本该走代理）
+        Assert.False(proxy.IsBypassed(new Uri("http://127.0.0.1.example.com/")));
+        Assert.False(proxy.IsBypassed(new Uri("http://localhost.example.com/")));
+        Assert.False(proxy.IsBypassed(new Uri("http://evil.com/127.0.0.1")));
+        Assert.False(proxy.IsBypassed(new Uri("http://evil.com/localhost")));
+    }
+
+    [Fact]
+    public void ApplyTo_manual_bypasses_loopback_in_any_scheme_and_shape()
+    {
+        var handler = new SocketsHttpHandler();
+        new ProxyConfig(AppSettings.ProxyModes.Manual, "http://127.0.0.1:7890").ApplyTo(handler);
+        var proxy = handler.Proxy!;
+
+        Assert.True(proxy.IsBypassed(new Uri("http://127.0.0.1/")));       // 无端口
+        Assert.True(proxy.IsBypassed(new Uri("https://127.0.0.1:443/x"))); // 非默认协议
+        Assert.True(proxy.IsBypassed(new Uri("http://[::1]:8766/")));      // IPv6 带方括号
+    }
+
+
+
+    [Fact]
     public void ApplyTo_system_leaves_default_proxy_resolution()
     {
         // Proxy=null + UseProxy=true → 由 HttpClient.DefaultProxy（系统代理）决定

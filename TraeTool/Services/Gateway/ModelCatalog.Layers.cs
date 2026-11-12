@@ -14,6 +14,12 @@ public static partial class ModelCatalog
     /// <summary>第 4 层：网关收到过的请求名（自动累积，同样按分隔符切分）。</summary>
     public static IReadOnlyList<string> ParseSeen(string? raw) => SplitNames(raw);
 
+    /// <summary>第 4 层快照：网关线程写、UI 线程读，结构变更需加锁。</summary>
+    private static IReadOnlyList<string> SeenSnapshot(AppSettings cfg)
+    {
+        lock (ConfigStore.SyncRoot) return ParseSeen(cfg.GatewaySeenModels);
+    }
+
     private static IReadOnlyList<string> SplitNames(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<string>();
@@ -40,12 +46,16 @@ public static partial class ModelCatalog
         if (name.Length == 0 || name.Length > MaxSeenNameLength) return false;
         if (string.Equals(name, Alias, StringComparison.OrdinalIgnoreCase)) return false;
 
-        var list = ParseSeen(cfg.GatewaySeenModels);
-        if (list.Contains(name, StringComparer.OrdinalIgnoreCase)) return false;
+        // 读-改-写整段加锁：网关线程记录新名字的同时，UI 线程可能正在增删列表
+        lock (ConfigStore.SyncRoot)
+        {
+            var list = ParseSeen(cfg.GatewaySeenModels);
+            if (list.Contains(name, StringComparer.OrdinalIgnoreCase)) return false;
 
-        var kept = list.Append(name).TakeLast(MaxSeenModels).ToList();
-        cfg.GatewaySeenModels = string.Join(Environment.NewLine, kept);
-        return true;
+            var kept = list.Append(name).TakeLast(MaxSeenModels).ToList();
+            cfg.GatewaySeenModels = string.Join(Environment.NewLine, kept);
+            return true;
+        }
     }
 
     /// <summary>该 id 是否被隐藏（「删除」的可恢复形态）。</summary>
@@ -69,7 +79,7 @@ public static partial class ModelCatalog
         var visible = overrides.Where(o => !o.Hidden && !string.IsNullOrWhiteSpace(o.Id)).ToList();
         var hidden = overrides.Where(o => o.Hidden && !string.IsNullOrWhiteSpace(o.Id)).ToList();
         var builtin = BuiltinEntries();
-        var seen = ParseSeen(cfg.GatewaySeenModels);
+        var seen = SeenSnapshot(cfg);
 
         var merged = new List<ModelEntry>();
         var covered = new HashSet<string>(StringComparer.Ordinal);   // 第 1 层的归一化去重

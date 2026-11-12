@@ -42,11 +42,22 @@ public sealed record ProxyConfig(string Mode, string? Url)
     }
 
     /// <summary>
-    /// 回环地址绕过项（<see cref="WebProxy.BypassList"/> 是正则，按此写法匹配主机名）。
+    /// 回环地址绕过项。规则（已按 .NET 实际行为核对）：
+    /// <see cref="WebProxy.BypassList"/> 的条目是正则，匹配对象是**整个 URI 字符串**而非主机名，
+    /// 因此「只写主机名」会让 <c>http://127.0.0.1.example.com/</c> 这类远端域名、乃至
+    /// <c>http://evil.com/127.0.0.1</c> 这种把回环写进路径的地址也命中，令本该走代理的请求被直连。
+    /// 故按「协议 + 主机 + 紧随的 : 或 /」整串限定。
     /// .NET 的 WebProxy 默认不绕过回环（127.0.0.1 与 localhost 都会交给代理），
     /// 与「本机地址不走代理」的约定不符，手动模式必须显式登记。
     /// </summary>
-    private static readonly string[] LoopbackBypass = ["127\\.0\\.0\\.1", "localhost", "\\[::1\\]"];
+    private const string AnyScheme = @"^[a-z][a-z0-9+.\-]*://";
+
+    private static readonly string[] LoopbackBypass =
+    [
+        AnyScheme + @"127\.0\.0\.1([:/]|$)",
+        AnyScheme + @"localhost([:/]|$)",
+        AnyScheme + @"\[::1\]([:/]|$)",
+    ];
 
     /// <summary>把当前模式写入 handler（HTTP 通道）。</summary>
     public void ApplyTo(SocketsHttpHandler handler)

@@ -1,4 +1,6 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using TraeTool.Models;
 using TraeTool.ViewModels;
 
@@ -17,10 +19,18 @@ public sealed partial class LocalGateway
     private bool Authorized(HttpListenerRequest req, HttpListenerContext ctx)
     {
         var got = req.Headers["X-TraeTool-Token"] ?? req.QueryString["token"] ?? "";
-        if (Token.Length > 0 && string.Equals(got, Token, StringComparison.Ordinal)) return true;
+        if (TokenMatches(got)) return true;
         Write(ctx, 401, new { error = "missing or invalid token", hint = "X-TraeTool-Token header or ?token=" });
         return false;
     }
+
+    /// <summary>
+    /// 恒定时间比较令牌：普通字符串比较在首个不同字符处即返回，
+    /// 攻击者能按响应时间差逐字节试出令牌。
+    /// </summary>
+    private bool TokenMatches(string got)
+        => Token.Length > 0 && CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(got), Encoding.UTF8.GetBytes(Token));
 
     private static int ReadLimit(HttpListenerRequest req)
     {
@@ -99,7 +109,7 @@ public sealed partial class LocalGateway
         if (token.Length == 0) token = (req.Headers["x-api-key"] ?? "").Trim();
         if (token.Length == 0)
             token = req.Headers["X-TraeTool-Token"] ?? req.QueryString["token"] ?? "";
-        if (Token.Length > 0 && string.Equals(token, Token, StringComparison.Ordinal)) return true;
+        if (TokenMatches(token)) return true;
         WriteRaw(ctx, 401, ChatProtocol.RenderError(new("missing or invalid api key", "invalid_request_error", 401)));
         return false;
     }

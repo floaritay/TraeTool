@@ -13,7 +13,11 @@ namespace TraeTool.Services.Gateway;
 /// </summary>
 public sealed partial class LocalGateway
 {
-    /// <summary>/v1/models：真实模型注册表（带别名），上游不可用时回退内置列表。</summary>
+    /// <summary>
+    /// /v1/models：真实模型注册表（带别名），上游不可用时回退内置列表。
+    /// 「名称推断」层（客户端请求过的名字）不出现在列表里——它只保证客户端问过的名字还能转发，
+    /// 不代表上游接受该名字，列出去会让客户端以为可直连。请求仍按该层解析（见 ResolveAsync）。
+    /// </summary>
     private async Task HandleModelsAsync(HttpListenerContext ctx)
     {
         var cfg = _config();
@@ -22,7 +26,9 @@ public sealed partial class LocalGateway
         ModelSources sources;
         try
         {
-            (ids, sources) = await ModelCatalog.AggregateAsync(cfg, account, Transport);
+            var (entries, s) = await ModelCatalog.AggregateEntriesAsync(cfg, account, Transport);
+            sources = s;
+            ids = entries.Where(e => e.Source != "seen").Select(e => e.Id).ToList();
         }
         catch (Exception ex)
         {
@@ -32,7 +38,7 @@ public sealed partial class LocalGateway
         }
         AppLog.Info("pool",
             $"模型列表：人工 {sources.Manual} · 官网 {sources.Official}{(sources.Live ? "" : "(回退)")} · " +
-            $"内置 {sources.Builtin} · 推断 {sources.Inferred} · 合计 {ids.Count}");
+            $"内置 {sources.Builtin} · 推断 {sources.Inferred}（不列出） · 合计 {ids.Count}");
 
         var list = new List<string>(ids);
         if (!list.Contains(ModelCatalog.Alias, StringComparer.OrdinalIgnoreCase))
@@ -71,7 +77,16 @@ public sealed partial class LocalGateway
 
         var (ids, _) = await ModelCatalog.AggregateAsync(cfg, _pool.Candidates(cfg, now).FirstOrDefault(),
             Transport);
-        return (parsed with { Model = ModelCatalog.Resolve(rawModel, ids) }, null, 200);
+        var resolved = ModelCatalog.Resolve(rawModel, ids);
+        // 名字不在目录内会被解析成别的模型（别名、空名与名称推断是有意为之，不记）：
+        // 其余替换记一行，免得「请求的模型和实际用的模型不一致」无从查证
+        if (rawModel.Trim().Length > 0 &&
+            !string.Equals(resolved, rawModel, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(ModelCatalog.Normalize(rawModel), ModelCatalog.Alias,
+                StringComparison.OrdinalIgnoreCase))
+            AppLog.Info("pool", $"请求的模型名 {rawModel} 不在目录内，已解析为 {resolved}");
+
+        return (parsed with { Model = resolved }, null, 200);
     }
 
     /// <summary>OpenAI 协议的对话转发（/v1/chat/completions）。</summary>

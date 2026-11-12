@@ -99,13 +99,26 @@ public sealed partial class LocalGateway
     /// <summary>首个可转发增量的等待上限；超时视为该账号失败并换号（HttpClient 超时只覆盖响应头）。</summary>
     public TimeSpan FirstTokenTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// 提交响应后的「上游读空闲」上限：每收到一个增量顺延一次。
+    /// 上游中途卡死时用它按协议收尾，否则请求会一直挂到客户端超时。
+    /// </summary>
+    public TimeSpan StreamIdleTimeout { get; set; } = TimeSpan.FromSeconds(120);
+
+    /// <summary>单次非流式上游尝试的时限（HttpClient 超时只覆盖响应头，正文读取可能一直挂着）。</summary>
+    public TimeSpan UpstreamAttemptTimeout { get; set; } = TimeSpan.FromSeconds(300);
+
     /// <summary>生成 32 字节随机令牌（base64url，无填充）。</summary>
     public static string NewToken() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
             .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
+    /// <summary>配置端口被占用时向后尝试的端口数（同机另一实例、上次退出残留的监听等）。</summary>
+    private const int PortFallbackCount = 5;
+
     /// <summary>
     /// 启动（先 Stop）。令牌缺失时在此生成并写入 cfg，由调用方负责落盘——本类不直接写配置文件。
+    /// 配置端口占用时往后找可用端口并写回 cfg.GatewayPort（落盘仍由调用方负责）。
     /// 失败写 LastError，不影响应用其他功能。
     /// </summary>
     public bool Start(AppSettings cfg)
@@ -114,34 +127,53 @@ public sealed partial class LocalGateway
         if (string.IsNullOrEmpty(cfg.GatewayToken))
             cfg.GatewayToken = NewToken();
 
-        var port = cfg.GatewayPort;
-        try
+        var wanted = cfg.GatewayPort;
+        HttpListener? listener = null;
+        var port = wanted;
+        Exception? lastError = null;
+        for (var i = 0; i <= PortFallbackCount; i++)
         {
-            var listener = new HttpListener();
-            listener.Prefixes.Add($"http://127.0.0.1:{port}/");
-            listener.Start();
-
-            var cts = new CancellationTokenSource();
-            lock (_gate)
+            port = wanted + i;
+            if (port is < 1024 or > 65535) break;
+            try
             {
-                _listener = listener;
-                _cts = cts;
+                var candidate = new HttpListener();
+                candidate.Prefixes.Add($"http://127.0.0.1:{port}/");
+                candidate.Start();
+                listener = candidate;
+                break;
             }
-            Port = port;
-            Token = cfg.GatewayToken!;
-            IsRunning = true;
-            LastError = null;
-            _ = Task.Run(() => LoopAsync(listener, cts.Token));
-            AppLog.Info("gateway", $"网关已启动 {Endpoint}（仅回环地址）");
-            return true;
+            catch (Exception ex)
+            {
+                lastError = ex;   // 端口占用：试下一个
+            }
         }
-        catch (Exception ex)
+
+        if (listener == null)
         {
-            LastError = ex.Message;
+            LastError = lastError?.Message ?? "没有可用端口";
             IsRunning = false;
-            AppLog.Error("gateway", $"启动失败（端口 {port}）: {ex.Message}");
+            AppLog.Error("gateway", $"启动失败（自 {wanted} 起 {PortFallbackCount + 1} 个端口均不可用）: {LastError}");
             return false;
         }
+
+        var cts = new CancellationTokenSource();
+        lock (_gate)
+        {
+            _listener = listener;
+            _cts = cts;
+        }
+        Port = port;
+        cfg.GatewayPort = port;
+        Token = cfg.GatewayToken!;
+        IsRunning = true;
+        LastError = null;
+        _ = Task.Run(() => LoopAsync(listener, cts.Token));
+        AppLog.Info("gateway",
+            port == wanted
+                ? $"网关已启动 {Endpoint}（仅回环地址）"
+                : $"配置端口 {wanted} 不可用，网关改用 {Endpoint}（仅回环地址）");
+        return true;
     }
 
     public void Stop()
@@ -282,11 +314,29 @@ public sealed partial class LocalGateway
 
     // ==================== 响应写出 ====================
 
-    private static void ApplyCors(HttpListenerResponse res)
+    /// <summary>
+    /// 只对回环来源回显 Origin：回 <c>*</c> 等于允许任意网页用用户浏览器打本机 127.0.0.1 端口
+    /// （本机其他服务与浏览器都可视作同一网络位置），非回环来源不回 CORS 头，交由浏览器拦截。
+    /// </summary>
+    private static void ApplyCors(HttpListenerContext ctx)
     {
-        res.Headers["Access-Control-Allow-Origin"] = "*";
+        var res = ctx.Response;
+        var origin = ctx.Request.Headers["Origin"];
+        if (origin != null && IsLoopbackOrigin(origin))
+        {
+            res.Headers["Access-Control-Allow-Origin"] = origin;
+            res.Headers["Vary"] = "Origin";
+        }
         res.Headers["Access-Control-Allow-Headers"] = "X-TraeTool-Token, Authorization, x-api-key, Content-Type";
         res.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+    }
+
+    /// <summary>是否为回环来源（http/https 且主机为 127.0.0.1 / localhost / [::1]）。</summary>
+    private static bool IsLoopbackOrigin(string origin)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return false;
+        return uri.Host is "127.0.0.1" or "localhost" or "::1" or "[::1]";
     }
 
     /// <summary>写 JSON 字符串（协议层已序列化，不再二次编码）。</summary>
@@ -297,7 +347,7 @@ public sealed partial class LocalGateway
             var res = ctx.Response;
             res.StatusCode = status;
             res.ContentType = "application/json; charset=utf-8";
-            ApplyCors(res);
+            ApplyCors(ctx);
             var bytes = Encoding.UTF8.GetBytes(json);
             res.ContentLength64 = bytes.Length;
             res.OutputStream.Write(bytes, 0, bytes.Length);
@@ -317,7 +367,7 @@ public sealed partial class LocalGateway
             {
                 var res = ctx.Response;
                 res.StatusCode = status;
-                ApplyCors(res);
+                ApplyCors(ctx);
                 res.Close();
             }
             catch

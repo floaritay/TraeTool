@@ -106,11 +106,12 @@ public sealed partial class LocalGateway
                 continue;
             }
 
-            // 提交：越过此点不能再换号，也撤掉首字节期限
-            streamCts.CancelAfter(Timeout.Infinite);
+            // 提交：越过此点不能再换号。首字节期限换成读空闲期限——每收到一个增量顺延，
+            // 上游中途卡死时也能收尾，不让客户端无限挂着
+            streamCts.CancelAfter(StreamIdleTimeout);
             _pool.MarkSuccess(account);
 
-            using var writer = new SseWriter(ctx.Response);
+            using var writer = new SseWriter(ctx);
             writer.Start();
             profile.Start(writer);
             profile.Delta(writer, first);
@@ -122,10 +123,16 @@ public sealed partial class LocalGateway
                     var delta = enumerator.Current;
                     if (delta.Outcome is { } outcome)
                     {
+                        // 响应已提交，不能再换号重试；但这次失败要记到账号上，
+                        // 否则后续请求会继续挑到同一个坏号
+                        if (outcome.Error is { } midError)
+                            ClassifyFailover(account, midError, DateTime.Now,
+                                RetryPolicy.Decide(midError, tries, outcome.RetryAfter).Cooldown);
                         profile.Stop(writer, outcome);
                         return;
                     }
                     if (profile.Emits(delta)) profile.Delta(writer, delta);
+                    streamCts.CancelAfter(StreamIdleTimeout);   // 有数据即顺延
                 }
                 // 上游没给终止帧就断了：补一个收尾，避免客户端一直挂着
                 profile.Stop(writer, UpstreamOutcome.Done("stop", truncated: true));
@@ -136,13 +143,25 @@ public sealed partial class LocalGateway
                 AppLog.Info("gateway", "客户端断开，已取消上游读取");
                 streamCts.Cancel();
             }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && streamCts.IsCancellationRequested)
+            {
+                // 上游读空闲超时（网关未停服）：按协议写错误收尾，别让客户端一直等
+                AppLog.Error("gateway", $"上游流式读空闲超时（{StreamIdleTimeout.TotalSeconds:0} 秒），已按协议收尾");
+                try
+                {
+                    profile.Stop(writer, UpstreamOutcome.Failed(
+                        new ChatUpstreamError("上游流式响应读取超时", "upstream_error", 504)));
+                }
+                catch { /* 客户端已断开 */ }
+            }
             catch (OperationCanceledException)
             {
                 streamCts.Cancel();   // 网关停服
             }
             finally
             {
-                await enumerator.DisposeAsync();
+                try { await enumerator.DisposeAsync(); }
+                catch { /* 已取消/已释放 */ }
             }
             return;
         }
@@ -273,14 +292,16 @@ public sealed partial class LocalGateway
     /// <summary>SSE 写出口：逐帧落 socket（不缓冲整段），提交后不可再改状态码与响应头。</summary>
     private sealed class SseWriter : IDisposable
     {
+        private readonly HttpListenerContext _ctx;
         private readonly HttpListenerResponse _response;
         private readonly Stream _output;
         private bool _closed;
 
-        public SseWriter(HttpListenerResponse response)
+        public SseWriter(HttpListenerContext ctx)
         {
-            _response = response;
-            _output = response.OutputStream;
+            _ctx = ctx;
+            _response = ctx.Response;
+            _output = _response.OutputStream;
         }
 
         /// <summary>提交响应头；只在首个可转发增量到手后调用一次。</summary>
@@ -291,7 +312,7 @@ public sealed partial class LocalGateway
             _response.Headers["Cache-Control"] = "no-cache";
             // 不能设 ContentLength64：那会要求先知道长度，等于把整段缓冲起来
             _response.SendChunked = true;
-            ApplyCors(_response);
+            ApplyCors(_ctx);
         }
 
         public void Write(string frame)

@@ -75,7 +75,19 @@ public sealed partial class LocalGateway
             if (_persistRenewedToken && !string.Equals(beforeToken, account.Token, StringComparison.Ordinal))
                 ConfigStore.Save(cfg);
 
-            var res = await _upstream.CompleteAsync(account, parsed, ct);
+            // 单次尝试的时限：HttpClient 超时只覆盖响应头，正文迟迟不来会一直挂着
+            using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            attemptCts.CancelAfter(UpstreamAttemptTimeout);
+            UpstreamResult res;
+            try
+            {
+                res = await _upstream.CompleteAsync(account, parsed, attemptCts.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && attemptCts.IsCancellationRequested)
+            {
+                res = UpstreamResult.Fail(
+                    $"上游响应超时（{UpstreamAttemptTimeout.TotalSeconds:0} 秒）", "upstream_error", 504);
+            }
             if (res.Ok)
             {
                 _pool.MarkSuccess(account);
