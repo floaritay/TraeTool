@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TraeTool.Models;
@@ -7,8 +8,10 @@ using TraeTool.Services.Gateway;
 namespace TraeTool.Services;
 
 /// <summary>
-/// config.json 存取。敏感字段（Account.Token / Session / DeviceId）以 DPAPI 加密落盘，
-/// 内存中保持明文（各调用方无感）。
+/// config.json 存取。敏感字段（Account.Token / Session / DeviceId、AppSettings.GatewayToken）
+/// 以 DPAPI 加密落盘，内存中保持明文（各调用方无感）。
+/// 加密失败不降级为明文：整次保存中止并保留磁盘旧文件（见 <see cref="Save"/>），
+/// 否则「磁盘无明文」的约定会静默失效。
 ///
 /// ⚠️ 已知陷阱：每个新增密文字段必须**同时**加进
 /// <see cref="Seal"/>（Save 路径）与 <see cref="UnsealSecrets"/>（Load 路径），
@@ -23,12 +26,18 @@ public static class ConfigStore
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     };
 
-    /// <summary>密文字段访问器（属性名 → get/set）。新增密文属性只需在此追加一行。</summary>
+    /// <summary>账号级密文字段访问器（属性名 → get/set）。新增密文属性只需在此追加一行。</summary>
     private static readonly (string Name, Func<Account, string?> Get, Action<Account, string?> Set)[] SecretFields =
     [
         ("Token", a => a.Token, (a, v) => a.Token = v),
         ("Session", a => a.Session, (a, v) => a.Session = v),
         ("DeviceId", a => a.DeviceId, (a, v) => a.DeviceId = v ?? ""),
+    ];
+
+    /// <summary>配置级密文字段访问器（网关令牌等）。与 <see cref="SecretFields"/> 同理集中登记。</summary>
+    private static readonly (string Name, Func<AppSettings, string?> Get, Action<AppSettings, string?> Set)[] SettingsSecretFields =
+    [
+        ("GatewayToken", s => s.GatewayToken, (s, v) => s.GatewayToken = v),
     ];
 
     private static string BackupPath => Paths.ConfigFile + ".bak";
@@ -77,8 +86,9 @@ public static class ConfigStore
 
     /// <summary>
     /// 写「加密副本」而非原对象（内存明文不受影响，磁盘无明文）。
-    /// 步骤：留 .bak → 写临时文件 → 原子替换主文件；三步同锁，
+    /// 步骤：取跨进程文件锁 → 留 .bak → 写临时文件（含落盘刷写）→ 原子替换主文件；全程同锁，
     /// 避免并发时把另一个线程写到一半的主文件拷成 .bak，也避免半截主文件留在盘上。
+    /// 加密失败直接抛出 → 整次保存中止，磁盘保留旧文件（不降级写明文）。
     /// </summary>
     public static void Save(AppSettings cfg)
     {
@@ -88,21 +98,56 @@ public static class ConfigStore
             var tmp = Paths.ConfigFile + ".tmp";
             lock (SaveGate)
             {
+                // 跨进程锁：单实例互斥是 Local\ 命名空间，不同 Windows 会话（RDP/快速用户切换）
+                // 可各起一个实例，只靠进程内锁会互相覆盖
+                using var fileLock = AcquireFileLock();
                 // 序列化必须在锁内：先在锁外快照再排队写入会让旧快照压掉新快照（丢更新）
                 string json;
                 lock (SyncRoot) json = JsonSerializer.Serialize(Seal(cfg), JsonOpts);
                 // 覆盖前留一份 .bak（Load 可在主文件损坏时回退）
                 if (File.Exists(Paths.ConfigFile))
                     File.Copy(Paths.ConfigFile, BackupPath, overwrite: true);
-                File.WriteAllText(tmp, json);
+                using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    var bytes = Encoding.UTF8.GetBytes(json);
+                    fs.Write(bytes, 0, bytes.Length);
+                    fs.Flush(flushToDisk: true);   // 掉电/断电时不留下截断的主文件
+                }
                 File.Move(tmp, Paths.ConfigFile, overwrite: true);
             }
         }
         catch (Exception ex)
         {
             // 保存失败（含 DPAPI 异常）保留磁盘旧文件，下次启动仍可读；记日志便于排查「改了没存上」
-            AppLog.Error("config", "保存失败: " + ex.Message);
+            AppLog.Error("config", "保存失败（磁盘保留旧配置）: " + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 跨进程配置写锁（同目录下 `.lock` 文件独占打开）。拿不到时不阻塞主流程：
+    /// 退化为仅进程内串行，避免一个卡死的实例把另一个实例的保存全部挂起。
+    /// </summary>
+    private static FileStream? AcquireFileLock()
+    {
+        var path = Paths.ConfigFile + ".lock";
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None,
+                    bufferSize: 1, FileOptions.None);
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(100);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        AppLog.Error("config", "跨进程写锁等待超时，本次仅按进程内串行保存");
+        return null;
     }
 
     /// <summary>生成敏感字段已 DPAPI 加密的深拷贝。</summary>
@@ -130,7 +175,7 @@ public static class ConfigStore
             ProxyUrl = cfg.ProxyUrl,
             GatewayEnabled = cfg.GatewayEnabled,
             GatewayPort = cfg.GatewayPort,
-            GatewayToken = cfg.GatewayToken,
+            GatewayToken = null,   // 下方按 SettingsSecretFields 加密写入
             GatewayChatEnabled = cfg.GatewayChatEnabled,
             GatewayManualModels = cfg.GatewayManualModels,
             GatewaySeenModels = cfg.GatewaySeenModels,
@@ -177,18 +222,19 @@ public static class ConfigStore
             {
                 var plain = get(src);
                 if (string.IsNullOrEmpty(plain)) { set(dst, plain); continue; }
-                // 加密失败保留明文（可自愈的降级，好过写 null 丢数据）；
-                // DPAPI 仅在换 Windows 用户/重装系统时才会失败，届时解密也会失败并触发重登。
-                set(dst, ProtectOrNull(plain) ?? plain);
+                // 加密失败直接抛出 → Save 中止本次写入，磁盘保留旧配置。
+                // 不可降级为明文：那会让「磁盘无明文」的约定静默失效。
+                set(dst, SecretProtector.Protect(plain));
             }
         }
-        return copy;
-    }
 
-    private static string? ProtectOrNull(string plain)
-    {
-        try { return SecretProtector.Protect(plain); }
-        catch { return null; }
+        foreach (var (_, get, set) in SettingsSecretFields)
+        {
+            var plain = get(cfg);
+            if (string.IsNullOrEmpty(plain)) { set(copy, plain); continue; }
+            set(copy, SecretProtector.Protect(plain));
+        }
+        return copy;
     }
 
     /// <summary>加载后解密敏感字段回内存。解密失败（换机/换用户）时保留原值：
@@ -203,6 +249,13 @@ public static class ConfigStore
                 if (string.IsNullOrEmpty(enc)) continue;
                 set(acc, SecretProtector.Unprotect(enc) ?? enc);
             }
+        }
+
+        foreach (var (_, get, set) in SettingsSecretFields)
+        {
+            var enc = get(cfg);
+            if (string.IsNullOrEmpty(enc)) continue;
+            set(cfg, SecretProtector.Unprotect(enc) ?? enc);
         }
     }
 

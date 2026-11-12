@@ -16,7 +16,8 @@ namespace TraeTool.Services.Gateway;
 ///   · 响应是 SSE：<c>event: meta</c> / <c>event: output</c>，output 的 data 形如
 ///     <c>{"choices":[{"text":"…"}]}</c>（completion 形状，不是 message.content），解析见 <see cref="ParseResponse"/>。
 ///
-/// 失败时上游 HTTP 状态与响应体前 512 字节写入日志（pool 标签）。
+/// 失败时上游 HTTP 状态与响应体前 512 字节写入日志（pool 标签）；
+/// 外发请求体只记长度与模型名，不落正文（正文含完整对话内容）。
 /// 不做按请求轮换设备身份：设备号取账号自己存的那一个，头部是固定的客户端标识。
 /// 请求体构造见 TraeChatUpstream.Body.cs，响应解析见 TraeChatUpstream.Parsing.cs。
 /// </summary>
@@ -76,7 +77,7 @@ public sealed partial class TraeChatUpstream(HttpClient? http = null) : IChatUps
             if (!response.IsSuccessStatusCode)
             {
                 var detail = await SafeReadAsync(response, ct);
-                AppLog.Info("pool", $"上游请求体: {body}");
+                AppLog.Info("pool", $"上游请求体 {body.Length} 字节（model={request.Model}，正文不落日志）");
                 yield return Fail($"上游返回 HTTP {status}：{Truncate(detail)}", "upstream_error", status, retryAfter);
                 yield break;
             }
@@ -88,7 +89,7 @@ public sealed partial class TraeChatUpstream(HttpClient? http = null) : IChatUps
                 var parsed = ParseJson(json, request.Model);
                 if (!parsed.Ok)
                 {
-                    AppLog.Info("pool", $"上游请求体: {body}");
+                    AppLog.Info("pool", $"上游请求体 {body.Length} 字节（model={request.Model}，正文不落日志）");
                     yield return UpstreamDelta.Terminal(UpstreamOutcome.Failed(parsed.Error!));
                 }
                 else
@@ -159,7 +160,7 @@ public sealed partial class TraeChatUpstream(HttpClient? http = null) : IChatUps
                 var parsed = ParseJson(jsonBuffer.ToString(), request.Model);
                 if (!parsed.Ok)
                 {
-                    AppLog.Info("pool", $"上游请求体: {body}");
+                    AppLog.Info("pool", $"上游请求体 {body.Length} 字节（model={request.Model}，正文不落日志）");
                     yield return UpstreamDelta.Terminal(UpstreamOutcome.Failed(parsed.Error!));
                 }
                 else

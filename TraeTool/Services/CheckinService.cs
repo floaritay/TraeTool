@@ -115,7 +115,7 @@ public sealed class CheckinService(Func<AppSettings> getConfig, Action saveConfi
         AccountHealth.OnSuccess(account);
         saveConfig();
         CheckinRecordRepo.Insert(account, gained, claim.Code);
-        AppLog.Info("checkin", $"{displayName}: 签到成功 +{gained:0}（device={account.DeviceId}）");
+        AppLog.Info("checkin", $"{displayName}: 签到成功 +{gained:0}");
 
         // —— 刷新剩余额 ——
         var remaining = await TraeApiClient.GetRemainingCreditsAsync(token, account.DeviceId);

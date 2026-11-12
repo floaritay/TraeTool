@@ -102,9 +102,8 @@ public static class DeviceResetService
                 }
                 else
                 {
-                    var old = rk.GetValue("MachineGuid")?.ToString();
                     rk.SetValue("MachineGuid", Guid.NewGuid().ToString());
-                    AppLog.Info("devreset", "MachineGuid 已更新，旧值=" + old);
+                    AppLog.Info("devreset", "MachineGuid 已更新");
                     results.Add(new DeviceResetItem("MachineGuid", true, "已重置（旧值已写日志）"));
                 }
             }

@@ -12,6 +12,19 @@ namespace TraeTool.Services;
 /// </summary>
 public static class DeviceIdFactory
 {
+    /// <summary>可接受的设备号最短位数（客户端 dc id 与自生成号的交集下限）。</summary>
+    public const int MinDigits = 8;
+
+    /// <summary>可接受的设备号最长位数。</summary>
+    public const int MaxDigits = 24;
+
+    /// <summary>
+    /// 设备号格式校验（客户端 dc id 与自生成号共用同一判定）：
+    /// 纯数字且位数在 <see cref="MinDigits"/>~<see cref="MaxDigits"/> 之间。
+    /// </summary>
+    public static bool IsValid(string? id)
+        => id is { } s && s.Length >= MinDigits && s.Length <= MaxDigits && s.All(char.IsDigit);
+
     /// <summary>生成 16 位数字设备号（1e15 ~ 1e16-1）。</summary>
     public static string Generate()
         => Random.Shared.NextInt64(1_000_000_000_000_000L, 10_000_000_000_000_000L).ToString();
@@ -46,7 +59,7 @@ public static class DeviceIdFactory
                     const string prefix = "iCubeAuthInfo://icube-dc:";
                     if (!prop.Name.StartsWith(prefix, StringComparison.Ordinal)) continue;
                     var id = prop.Name.Substring(prefix.Length);
-                    if (id.Length >= 8 && id.All(char.IsDigit)) return id;
+                    if (IsValid(id)) return id;
                 }
             }
             catch { /* 文件损坏/占用则试下一个目录 */ }

@@ -37,7 +37,7 @@
           RegexOptions.Compiled);
 
       private static readonly Regex DcIdRe = new(
-          "iCubeAuthInfo://icube-dc:(\\d{8,})",
+          "iCubeAuthInfo://icube-dc:(\\d{" + DeviceIdFactory.MinDigits + "," + DeviceIdFactory.MaxDigits + "})",
           RegexOptions.Compiled);
 
       /// <summary>后台探查（内部 IO 与扫描不进 UI 线程）。</summary>
@@ -115,8 +115,9 @@
                   if (token != null) break;
               }
 
+              // 设备号是设备指纹，日志只记有无，不落具体值
               AppLog.Info("import",
-                  $"探查完成：token={(token != null)} session={(session != null)} device={deviceId ?? "-"} 扫描{scanned}个文件");
+                  $"探查完成：token={(token != null)} session={(session != null)} device={(deviceId != null)} 扫描{scanned}个文件");
 
               if (token == null && session == null)
               {
